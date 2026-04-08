@@ -10,6 +10,15 @@ from threading import Thread
 from typing import Final
 
 FIXTURE_ROOT: Final[Path] = Path(__file__).resolve().parents[3] / "tests" / "fixtures"
+DEFAULT_HTTP_FIXTURES: Final[dict[str, Path]] = {
+    "cisco": FIXTURE_ROOT / "http_cisco.txt",
+    "citrix": FIXTURE_ROOT / "http_citrix.txt",
+    "f5": FIXTURE_ROOT / "http_f5.txt",
+    "fortinet": FIXTURE_ROOT / "http_fortinet.txt",
+    "ivanti": FIXTURE_ROOT / "http_ivanti.txt",
+    "paloalto": FIXTURE_ROOT / "http_paloalto.txt",
+    "sonicwall": FIXTURE_ROOT / "http_sonicwall.txt",
+}
 
 
 @dataclass(frozen=True)
@@ -103,3 +112,8 @@ def start_named_fixture_servers(
         stack.callback(httpd.server_close)
         servers.append(fixture_server)
     return stack, servers
+
+
+def default_http_fixtures() -> dict[str, Path]:
+    """Return the default HTTP fixture set for replay validation."""
+    return dict(DEFAULT_HTTP_FIXTURES)

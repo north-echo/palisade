@@ -5,15 +5,11 @@ from __future__ import annotations
 
 import time
 
-from palisade.core.mock_lab import FIXTURE_ROOT, start_named_fixture_servers
+from palisade.core.mock_lab import default_http_fixtures, start_named_fixture_servers
 
 
 def main() -> int:
-    fixtures = {
-        "fortinet": FIXTURE_ROOT / "http_fortinet.txt",
-        "sonicwall": FIXTURE_ROOT / "http_sonicwall.txt",
-        "citrix": FIXTURE_ROOT / "http_citrix.txt",
-    }
+    fixtures = default_http_fixtures()
     stack, servers = start_named_fixture_servers(fixtures)
     with stack:
         print("PALISADE mock lab running")
