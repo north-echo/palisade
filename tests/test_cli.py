@@ -449,6 +449,79 @@ def test_scan_export_and_import_cli_round_trip(
     assert "imported scan bundle for scan-id" in import_result.output
 
 
+def test_config_init_and_show_cli(tmp_path: Path) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "palisade.json"
+
+    init_result = runner.invoke(main, ["--config", str(config_path), "config", "init"])
+    assert init_result.exit_code == 0
+    assert config_path.exists()
+
+    show_result = runner.invoke(main, ["--config", str(config_path), "config", "show"])
+    assert show_result.exit_code == 0
+    assert '"default_kev_scope": "expanded"' in show_result.output
+
+
+def test_config_file_supplies_default_db_path_and_artifact_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    config_path = tmp_path / "palisade.json"
+    configured_db = tmp_path / "state" / "palisade.db"
+    artifact_dir = tmp_path / "bundles"
+    fixture_path = Path(__file__).parent / "fixtures" / "kev_sample.json"
+    config_path.write_text(
+        f"""
+        {{
+          "db_path": "{configured_db}",
+          "default_kev_scope": "expanded",
+          "default_concurrency": 2,
+          "default_artifact_dir": "{artifact_dir}"
+        }}
+        """,
+        encoding="utf-8",
+    )
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ports, config
+        return [
+            DeviceFingerprint(
+                ip=ip,
+                port=443,
+                vendor="Fortinet",
+                product="FortiOS",
+                version="7.2.4",
+                method="http_header",
+                raw_data="fixture",
+                confidence="high",
+            )
+        ]
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+    sync_result = runner.invoke(
+        main,
+        ["--config", str(config_path), "kev-sync", "--import", str(fixture_path)],
+    )
+    assert sync_result.exit_code == 0
+    assert configured_db.exists()
+
+    scan_result = runner.invoke(
+        main,
+        ["--config", str(config_path), "edge-audit", "--target", "192.0.2.60"],
+    )
+    assert scan_result.exit_code == 0
+
+    export_result = runner.invoke(
+        main,
+        ["--config", str(config_path), "scan-export", "--latest"],
+    )
+    assert export_result.exit_code == 0
+    assert artifact_dir.exists()
+    assert ".zip" in export_result.output
+
+
 def test_report_writes_html_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

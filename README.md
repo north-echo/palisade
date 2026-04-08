@@ -11,6 +11,9 @@ The project overview and current planning documents live in:
 Current status:
 
 - Installable Python package scaffold
-- Click CLI skeleton
-- Placeholder commands for `kev-sync`, `edge-audit`, and `report`
+- Working Click CLI with `kev-sync`, `edge-audit`, `report`, `scan-export`, and `scan-import`
+- SQLite-backed KEV storage with CISA and supplemental-source support, including VulnCheck adapter support
+- Edge-device fingerprinting and KEV matching for SonicWall, Fortinet, F5, Cisco, Palo Alto, Ivanti, and Citrix
+- Text, JSON, and HTML reporting with source-aware findings and scan diffs
+- Scan bundle export/import for artifact packaging and offline transfer
 - Basic test, lint, type-check, and CI configuration

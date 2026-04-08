@@ -9,6 +9,12 @@ import click
 
 from palisade import __version__
 from palisade.core.artifact import export_scan_bundle, import_scan_bundle
+from palisade.core.config import (
+    config_to_json,
+    load_config,
+    resolve_config_path,
+    write_default_config,
+)
 from palisade.core.db import initialize_db_path
 from palisade.core.kev import (
     export_kev_json_file,
@@ -41,18 +47,29 @@ def default_db_path() -> Path:
 @click.version_option(version=__version__, prog_name="palisade")
 @click.option("--verbose", is_flag=True, help="Enable verbose console output.")
 @click.option(
+    "--config",
+    "config_path",
+    type=click.Path(path_type=Path),
+    help="Path to a PALISADE JSON config file.",
+)
+@click.option(
     "--db-path",
     type=click.Path(path_type=Path),
-    default=default_db_path,
+    default=None,
     show_default=str(default_db_path()),
     help="Path to the local SQLite database.",
 )
 @click.pass_context
-def main(ctx: click.Context, verbose: bool, db_path: Path) -> None:
+def main(
+    ctx: click.Context, verbose: bool, config_path: Path | None, db_path: Path | None
+) -> None:
     """PALISADE operator-first OT security toolkit."""
     ctx.ensure_object(dict)
+    config = load_config(config_path)
     ctx.obj["verbose"] = verbose
-    ctx.obj["db_path"] = db_path
+    ctx.obj["config"] = config
+    ctx.obj["config_path"] = resolve_config_path(config_path)
+    ctx.obj["db_path"] = db_path if db_path is not None else config.db_path
 
 
 @main.command("kev-sync")
@@ -94,6 +111,7 @@ def kev_sync(
 ) -> None:
     """Synchronize the local KEV cache."""
     db_path = ctx.obj["db_path"]
+    config = ctx.obj["config"]
     connection = initialize_db_path(db_path)
 
     if import_path is not None:
@@ -137,7 +155,7 @@ def kev_sync(
     try:
         total_synced = 0
         synced_sources: list[str] = []
-        for adapter in build_source_adapters(vulncheck_token):
+        for adapter in build_source_adapters(vulncheck_token or config.vulncheck_token):
             source_name, synced_count = sync_source_adapter(connection, adapter)
             synced_sources.append(source_name)
             total_synced += synced_count
@@ -159,8 +177,7 @@ def kev_sync(
 @click.option(
     "--kev-scope",
     type=click.Choice(["strict", "expanded"]),
-    default="expanded",
-    show_default=True,
+    default=None,
     help="Use only CISA-backed KEV sources or include supplemental sources too.",
 )
 @click.option(
@@ -186,7 +203,7 @@ def edge_audit(
     ports: str | None,
     timeout: int | None,
     concurrency: int | None,
-    kev_scope: str,
+    kev_scope: str | None,
     output_format: str,
     report: bool,
     cpg_map: bool,
@@ -196,6 +213,7 @@ def edge_audit(
 ) -> None:
     """Run non-intrusive edge-device exposure triage."""
     db_path = ctx.obj["db_path"]
+    config = ctx.obj["config"]
     del report, cpg_map
     connection = initialize_db_path(db_path)
     scanner = EdgeAuditScanner(connection)
@@ -237,8 +255,8 @@ def edge_audit(
             ports=parse_ports(ports),
             connection_timeout=float(timeout) if timeout is not None else 5.0,
             read_timeout=float(timeout) if timeout is not None else 10.0,
-            kev_scope=kev_scope,
-            concurrency=validate_concurrency(concurrency),
+            kev_scope=kev_scope or config.default_kev_scope,
+            concurrency=validate_concurrency(concurrency, default=config.default_concurrency),
         )
         result = scanner.scan(targets, scan_options)
     except Exception as exc:
@@ -358,34 +376,66 @@ def report_command(
     click.echo(report_body)
 
 
+@main.group("config")
+def config_group() -> None:
+    """Manage PALISADE config."""
+
+
+@config_group.command("show")
+@click.pass_context
+def config_show_command(ctx: click.Context) -> None:
+    """Show the resolved PALISADE config."""
+    click.echo(config_to_json(ctx.obj["config"]))
+
+
+@config_group.command("init")
+@click.option(
+    "--output",
+    "output_path",
+    type=click.Path(path_type=Path),
+    help="Write a starter config file to this path.",
+)
+@click.pass_context
+def config_init_command(ctx: click.Context, output_path: Path | None) -> None:
+    """Write a starter config file."""
+    target_path = output_path if output_path is not None else ctx.obj["config_path"]
+    write_default_config(target_path)
+    click.echo(f"wrote starter config to {target_path}")
+
+
 @main.command("scan-export")
 @click.option("--scan-id", help="Export a specific scan.")
 @click.option("--latest", is_flag=True, help="Export the most recent scan.")
 @click.option(
     "--output",
     "output_path",
-    required=True,
     type=click.Path(path_type=Path),
     help="Write the scan bundle to this zip file.",
 )
 @click.pass_context
 def scan_export_command(
-    ctx: click.Context, scan_id: str | None, latest: bool, output_path: Path
+    ctx: click.Context, scan_id: str | None, latest: bool, output_path: Path | None
 ) -> None:
     """Export a persisted scan as a bundle."""
     db_path = ctx.obj["db_path"]
+    config = ctx.obj["config"]
     connection = initialize_db_path(db_path)
     scanner = EdgeAuditScanner(connection)
 
     selected_scan_id = scanner.get_latest_scan_id() if latest else scan_id
     if selected_scan_id is None:
         raise click.ClickException("No scan available for export")
+    selected_output_path = (
+        output_path
+        if output_path is not None
+        else config.default_artifact_dir / f"{selected_scan_id}.zip"
+    )
 
     try:
-        export_scan_bundle(connection, selected_scan_id, output_path)
+        export_scan_bundle(connection, selected_scan_id, selected_output_path)
     except Exception as exc:
         raise click.ClickException(str(exc)) from exc
-    click.echo(f"exported scan bundle to {output_path}")
+    click.echo(f"exported scan bundle to {selected_output_path}")
 
 
 @main.command("scan-import")
@@ -416,10 +466,10 @@ def build_source_adapters(vulncheck_token: str | None) -> list[object]:
     return adapters
 
 
-def validate_concurrency(value: int | None) -> int:
+def validate_concurrency(value: int | None, *, default: int = 1) -> int:
     """Return a valid concurrency setting."""
     if value is None:
-        return 1
+        return default
     if value < 1:
         raise ValueError("Concurrency must be at least 1")
     return value
