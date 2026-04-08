@@ -71,6 +71,7 @@ def test_render_text_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert "Findings:" in report
     assert "kev-scope:" in report
     assert "sources=cisa_kev" in report
+    assert "asset=" in report
 
 
 def test_render_json_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -98,6 +99,7 @@ def test_render_html_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert "PALISADE Report" in report
     assert "<ul>" in report
     assert "sources=cisa_kev" in report
+    assert "asset=" in report
 
 
 def test_filter_report_rows_filters_by_vendor_and_findings_only(

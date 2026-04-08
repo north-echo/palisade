@@ -85,3 +85,5 @@ def test_import_scan_bundle_restores_scan(
     assert imported_scan_id == original_scan_id
     assert len(devices) == 1
     assert len(findings) == 1
+    assert devices[0]["asset_id"] is not None
+    assert findings[0]["asset_id"] == devices[0]["asset_id"]

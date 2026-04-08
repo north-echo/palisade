@@ -92,13 +92,14 @@ def import_scan_bundle(connection: sqlite3.Connection, input_path: Path) -> str:
         connection.executemany(
             """
             INSERT INTO devices(
-                device_id, scan_id, ip_address, port, vendor, product, version,
+                device_id, asset_id, scan_id, ip_address, port, vendor, product, version,
                 fingerprint_method, raw_fingerprint, discovered_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
                     require_string(device, "device_id"),
+                    optional_string(device, "asset_id"),
                     scan_id,
                     require_string(device, "ip_address"),
                     require_int(device, "port"),
@@ -115,16 +116,17 @@ def import_scan_bundle(connection: sqlite3.Connection, input_path: Path) -> str:
         connection.executemany(
             """
             INSERT INTO findings(
-                finding_id, scan_id, device_id, cve_id, vendor, product,
+                finding_id, scan_id, device_id, asset_id, cve_id, vendor, product,
                 version_detected, version_fixed, confidence, kev_sources,
                 kev_source_confidences, evidence_urls, cpg_ids, remediation, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
                     require_string(finding, "finding_id"),
                     scan_id,
                     require_string(finding, "device_id"),
+                    optional_string(finding, "asset_id"),
                     require_string(finding, "cve_id"),
                     require_string(finding, "vendor"),
                     require_string(finding, "product"),

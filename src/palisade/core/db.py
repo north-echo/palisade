@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Final
 
-SCHEMA_VERSION: Final[int] = 2
+SCHEMA_VERSION: Final[int] = 3
 
 SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
     """
@@ -69,6 +69,7 @@ SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
     """
     CREATE TABLE IF NOT EXISTS devices (
         device_id TEXT PRIMARY KEY,
+        asset_id TEXT,
         scan_id TEXT NOT NULL REFERENCES scans(scan_id),
         ip_address TEXT NOT NULL,
         port INTEGER,
@@ -81,11 +82,13 @@ SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_devices_scan ON devices(scan_id)",
+    "CREATE INDEX IF NOT EXISTS idx_devices_asset ON devices(asset_id)",
     """
     CREATE TABLE IF NOT EXISTS findings (
         finding_id TEXT PRIMARY KEY,
         scan_id TEXT NOT NULL REFERENCES scans(scan_id),
         device_id TEXT NOT NULL REFERENCES devices(device_id),
+        asset_id TEXT,
         cve_id TEXT NOT NULL,
         vendor TEXT NOT NULL,
         product TEXT NOT NULL,
@@ -102,6 +105,7 @@ SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
     """,
     "CREATE INDEX IF NOT EXISTS idx_findings_scan ON findings(scan_id)",
     "CREATE INDEX IF NOT EXISTS idx_findings_cve ON findings(cve_id)",
+    "CREATE INDEX IF NOT EXISTS idx_findings_asset ON findings(asset_id)",
 )
 
 
@@ -145,6 +149,19 @@ def ensure_schema_compatibility(connection: sqlite3.Connection) -> None:
     )
     ensure_column(
         connection,
+        "devices",
+        "asset_id",
+        "ALTER TABLE devices ADD COLUMN asset_id TEXT",
+    )
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_devices_asset ON devices(asset_id)")
+    ensure_column(
+        connection,
+        "findings",
+        "asset_id",
+        "ALTER TABLE findings ADD COLUMN asset_id TEXT",
+    )
+    ensure_column(
+        connection,
         "findings",
         "kev_sources",
         "ALTER TABLE findings ADD COLUMN kev_sources TEXT",
@@ -161,6 +178,8 @@ def ensure_schema_compatibility(connection: sqlite3.Connection) -> None:
         "evidence_urls",
         "ALTER TABLE findings ADD COLUMN evidence_urls TEXT",
     )
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_findings_asset ON findings(asset_id)")
+    backfill_asset_ids(connection)
 
 
 def ensure_column(
@@ -172,6 +191,52 @@ def ensure_column(
     if column_name in existing_columns:
         return
     connection.execute(statement)
+
+
+def backfill_asset_ids(connection: sqlite3.Connection) -> None:
+    """Populate asset identifiers for existing device and finding rows when missing."""
+    from palisade.core.asset import compute_asset_id_from_fields
+
+    device_rows = connection.execute(
+        """
+        SELECT device_id, ip_address, port, vendor, product, version, raw_fingerprint
+        FROM devices
+        WHERE asset_id IS NULL
+        """
+    ).fetchall()
+    if device_rows:
+        connection.executemany(
+            """
+            UPDATE devices
+            SET asset_id = ?
+            WHERE device_id = ?
+            """,
+            [
+                (
+                    compute_asset_id_from_fields(
+                        ip=str(row["ip_address"]),
+                        port=int(row["port"]),
+                        vendor=str(row["vendor"]) if row["vendor"] is not None else None,
+                        product=str(row["product"]) if row["product"] is not None else None,
+                        version=str(row["version"]) if row["version"] is not None else None,
+                        raw_data=str(row["raw_fingerprint"] or ""),
+                    ),
+                    str(row["device_id"]),
+                )
+                for row in device_rows
+            ],
+        )
+    connection.execute(
+        """
+        UPDATE findings
+        SET asset_id = (
+            SELECT devices.asset_id
+            FROM devices
+            WHERE devices.device_id = findings.device_id
+        )
+        WHERE asset_id IS NULL
+        """
+    )
 
 
 def initialize_db_path(path: Path) -> sqlite3.Connection:

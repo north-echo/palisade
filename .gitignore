@@ -12,3 +12,4 @@ build/
 data/
 demo/out/
 validation/out/
+.DS_Store

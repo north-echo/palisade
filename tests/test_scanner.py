@@ -130,6 +130,8 @@ def test_scan_matches_signatures_and_persists_findings(
     assert len(findings) == 1
     assert findings[0]["vendor"] == "Fortinet"
     assert findings[0]["kev_sources"] == "cisa_kev"
+    assert devices[0]["asset_id"] is not None
+    assert findings[0]["asset_id"] == devices[0]["asset_id"]
 
 
 def test_scan_uses_strict_scope_to_exclude_supplemental_only_findings(
@@ -270,6 +272,38 @@ def test_scan_records_concurrency_in_history(
     assert history[0]["concurrency"] == 2
 
 
+def test_same_version_devices_get_distinct_asset_ids(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    connection = initialize_db_path(tmp_path / "palisade.db")
+    scanner = EdgeAuditScanner(connection)
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ports, config
+        return [
+            DeviceFingerprint(
+                ip=ip,
+                port=443,
+                vendor="SonicWall",
+                product="SonicOS",
+                version="7.0.1-5035",
+                method="http_header",
+                raw_data="same-version-device",
+                confidence="high",
+            )
+        ]
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+
+    result = scanner.scan(["192.0.2.80", "192.0.2.81"], ScanOptions(discover_only=True))
+    devices, _findings = scanner.get_scan_rows(result.scan_id)
+
+    assert len(devices) == 2
+    assert devices[0]["asset_id"] != devices[1]["asset_id"]
+
+
 def test_scan_matches_citrix_signatures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -380,3 +414,74 @@ def test_diff_scans_reports_new_and_resolved_findings(
     assert diff.current_scan_id == second.scan_id
     assert len(diff.new_findings) == 0
     assert len(diff.resolved_findings) == 1
+
+
+def test_diff_scans_keeps_same_version_findings_distinct_by_asset(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    connection = initialize_db_path(tmp_path / "palisade.db")
+    upsert_kev_records(
+        connection,
+        [
+            KevRecord(
+                cve_id="CVE-2024-40766",
+                vendor_project="SonicWall",
+                product="SonicOS",
+                vulnerability_name="SonicWall issue",
+                date_added="2026-04-08",
+                short_description=None,
+                required_action="Patch now",
+                due_date=None,
+                known_ransomware_use="Known",
+                notes=None,
+                source="cisa_kev",
+                source_record_id="CVE-2024-40766",
+                source_confidence="authoritative_public",
+                source_url="https://www.cisa.gov/kev",
+            )
+        ],
+    )
+    scanner = EdgeAuditScanner(connection)
+    call_count = {"count": 0}
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ports, config
+        call_count["count"] += 1
+        if call_count["count"] <= 2:
+            return [
+                DeviceFingerprint(
+                    ip=ip,
+                    port=443,
+                    vendor="SonicWall",
+                    product="SonicOS",
+                    version="7.0.1-5035",
+                    method="http_header",
+                    raw_data="fixture",
+                    confidence="high",
+                )
+            ]
+        if ip == "192.0.2.90":
+            return [
+                DeviceFingerprint(
+                    ip=ip,
+                    port=443,
+                    vendor="SonicWall",
+                    product="SonicOS",
+                    version="7.0.1-5035",
+                    method="http_header",
+                    raw_data="fixture",
+                    confidence="high",
+                )
+            ]
+        return []
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+
+    first = scanner.scan(["192.0.2.90", "192.0.2.91"], ScanOptions())
+    second = scanner.scan(["192.0.2.90", "192.0.2.91"], ScanOptions())
+    diff = scanner.diff_scans(first.scan_id, second.scan_id)
+
+    assert len(diff.resolved_findings) == 1
+    assert len(diff.unchanged_findings) == 1

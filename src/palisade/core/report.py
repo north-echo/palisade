@@ -127,7 +127,8 @@ def render_text_report(
     lines.extend(["", "Devices:"])
     for device in devices:
         lines.append(
-            f"- {device['ip_address']}:{device['port']} vendor={device['vendor'] or 'unknown'} "
+            f"- asset={device['asset_id'] or 'unknown'} "
+            f"{device['ip_address']}:{device['port']} vendor={device['vendor'] or 'unknown'} "
             f"product={device['product'] or 'unknown'} version={device['version'] or 'unknown'} "
             f"method={device['fingerprint_method']}"
         )
@@ -135,7 +136,8 @@ def render_text_report(
     lines.append("Findings:")
     for finding in findings:
         lines.append(
-            f"- {finding['cve_id']} vendor={finding['vendor']} product={finding['product']} "
+            f"- asset={finding['asset_id'] or 'unknown'} "
+            f"{finding['cve_id']} vendor={finding['vendor']} product={finding['product']} "
             f"version={finding['version_detected'] or 'unknown'} "
             f"fixed={finding['version_fixed'] or 'unknown'} "
             f"sources={finding['kev_sources'] or 'unknown'}"
@@ -197,6 +199,7 @@ def render_html_report(
     active_filters = filters or ReportFilters()
     device_items = "".join(
         "<li>"
+        f"asset={escape(str(device['asset_id'] or 'unknown'))} "
         f"{escape(str(device['ip_address']))}:{escape(str(device['port']))} "
         f"{escape(str(device['vendor'] or 'unknown'))} "
         f"{escape(str(device['product'] or 'unknown'))} "
@@ -206,6 +209,7 @@ def render_html_report(
     )
     finding_items = "".join(
         "<li>"
+        f"asset={escape(str(finding['asset_id'] or 'unknown'))} "
         f"{escape(str(finding['cve_id']))} "
         f"{escape(str(finding['vendor']))} "
         f"{escape(str(finding['product']))} "

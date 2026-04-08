@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from palisade.core.asset import compute_asset_id
 from palisade.core.device import DeviceFingerprint, ProbeConfig, fingerprint_host
 from palisade.core.report import ReportDiff
 from palisade.core.version import is_affected
@@ -22,6 +23,7 @@ class ScanFinding:
     """A matched exposure finding."""
 
     cve_id: str
+    asset_id: str
     vendor: str
     product: str
     version_detected: str
@@ -86,13 +88,14 @@ class EdgeAuditScanner:
                         or fingerprint.vendor.lower() != options.vendor_filter.lower()
                     ):
                         continue
-                    device_id = self._insert_device(scan_id, fingerprint)
+                    asset_id = compute_asset_id(fingerprint)
+                    device_id = self._insert_device(scan_id, asset_id, fingerprint)
                     devices.append(fingerprint)
                     if options.discover_only:
                         continue
                     findings.extend(
                         self._match_and_store_findings(
-                            scan_id, device_id, fingerprint, options.kev_scope
+                            scan_id, device_id, asset_id, fingerprint, options.kev_scope
                         )
                     )
         except Exception:
@@ -218,18 +221,21 @@ class EdgeAuditScanner:
                 (completed_at, status, device_count, finding_count, scan_id),
             )
 
-    def _insert_device(self, scan_id: str, fingerprint: DeviceFingerprint) -> str:
+    def _insert_device(
+        self, scan_id: str, asset_id: str, fingerprint: DeviceFingerprint
+    ) -> str:
         device_id = str(uuid.uuid4())
         with self.connection:
             self.connection.execute(
                 """
                 INSERT INTO devices(
-                    device_id, scan_id, ip_address, port, vendor, product, version,
+                    device_id, asset_id, scan_id, ip_address, port, vendor, product, version,
                     fingerprint_method, raw_fingerprint
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     device_id,
+                    asset_id,
                     scan_id,
                     fingerprint.ip,
                     fingerprint.port,
@@ -243,7 +249,12 @@ class EdgeAuditScanner:
         return device_id
 
     def _match_and_store_findings(
-        self, scan_id: str, device_id: str, fingerprint: DeviceFingerprint, kev_scope: str
+        self,
+        scan_id: str,
+        device_id: str,
+        asset_id: str,
+        fingerprint: DeviceFingerprint,
+        kev_scope: str,
     ) -> list[ScanFinding]:
         if (
             fingerprint.vendor is None
@@ -268,6 +279,7 @@ class EdgeAuditScanner:
                 continue
             finding = ScanFinding(
                 cve_id=signature.cve_id,
+                asset_id=asset_id,
                 vendor=fingerprint.vendor,
                 product=fingerprint.product,
                 version_detected=fingerprint.version,
@@ -294,15 +306,16 @@ class EdgeAuditScanner:
             self.connection.execute(
                 """
                 INSERT INTO findings(
-                    finding_id, scan_id, device_id, cve_id, vendor, product,
+                    finding_id, scan_id, device_id, asset_id, cve_id, vendor, product,
                     version_detected, version_fixed, confidence, kev_sources,
                     kev_source_confidences, evidence_urls, cpg_ids, remediation
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(uuid.uuid4()),
                     scan_id,
                     device_id,
+                    finding.asset_id,
                     finding.cve_id,
                     finding.vendor,
                     finding.product,
@@ -436,8 +449,8 @@ def utc_now() -> str:
 def finding_identity(row: sqlite3.Row) -> tuple[str, str, str, str]:
     """Return a stable finding identity for diffing."""
     return (
+        str(row["asset_id"] or ""),
         str(row["cve_id"]),
         str(row["vendor"]),
         str(row["product"]),
-        str(row["version_detected"] or ""),
     )
