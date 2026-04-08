@@ -1,0 +1,10 @@
+status: 200
+reason: OK
+Server: SonicWALL
+Content-Type: text/html
+
+<html>
+<title>SonicWall Management Interface</title>
+<script>var firmware = "SonicOS 7.0.1-5035";</script>
+<a href="/auth.html">Login</a>
+</html>

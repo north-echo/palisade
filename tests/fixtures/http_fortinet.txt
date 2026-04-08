@@ -1,0 +1,11 @@
+status: 200
+reason: OK
+Set-Cookie: APSCOOKIE_12345=deadbeef
+Content-Type: text/html
+
+<html>
+<title>Fortinet FortiGate</title>
+<div>FortiOS 7.2.4</div>
+<form action="/remote/login">
+</form>
+</html>

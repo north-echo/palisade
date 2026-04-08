@@ -1,0 +1,10 @@
+status: 200
+reason: OK
+Set-Cookie: BIGipServerPOOL=123456789.20480.0000
+Content-Type: text/html
+
+<html>
+<title>F5 Networks BIG-IP Configuration</title>
+<a href="/tmui/login.jsp">Login</a>
+<div>BIG-IP 17.1.0</div>
+</html>

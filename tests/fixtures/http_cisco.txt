@@ -1,0 +1,10 @@
+status: 200
+reason: OK
+Server: Cisco ASA
+Content-Type: text/html
+
+<html>
+<title>Cisco Adaptive Security Appliance</title>
+<div>Software Version 9.18(2)</div>
+<form action="/+CSCOE+/logon.html"></form>
+</html>

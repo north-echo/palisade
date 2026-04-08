@@ -1,0 +1,2 @@
+Fortinet FortiGate Appliance
+Version: 7.0.12

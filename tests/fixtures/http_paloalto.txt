@@ -1,0 +1,9 @@
+status: 200
+reason: OK
+Content-Type: text/html
+
+<html>
+<title>Palo Alto Networks GlobalProtect Portal</title>
+<div>PAN-OS 11.0.2</div>
+<form action="/global-protect/login.esp"></form>
+</html>

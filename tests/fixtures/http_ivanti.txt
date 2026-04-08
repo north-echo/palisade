@@ -1,0 +1,10 @@
+status: 200
+reason: OK
+Set-Cookie: DSID=abcdef123456
+Content-Type: text/html
+
+<html>
+<title>Ivanti Connect Secure</title>
+<div>Ivanti Connect Secure 22.5.1</div>
+<form action="/dana-na/auth/submit.cgi"></form>
+</html>

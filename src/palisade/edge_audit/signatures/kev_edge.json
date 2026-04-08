@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-04-08T00:00:00Z",
+  "signatures": [
+    {
+      "cve_id": "CVE-2024-40766",
+      "vendor": "sonicwall",
+      "product": "SonicOS",
+      "product_families": ["NSA", "TZ", "SOHO"],
+      "affected_versions": {"operator": "lt", "version": "7.0.1-5036"},
+      "fixed_version": "7.0.1-5036",
+      "kev_date_added": "2024-09-09",
+      "known_ransomware_use": "Known",
+      "severity": "critical",
+      "remediation": "Update SonicOS to the vendor-fixed release or later.",
+      "references": ["https://psirt.global.sonicwall.com/"],
+      "cpg_ids": ["1.A"]
+    },
+    {
+      "cve_id": "CVE-2024-21762",
+      "vendor": "fortinet",
+      "product": "FortiOS",
+      "product_families": ["FortiGate"],
+      "affected_versions": {"operator": "lt", "version": "7.2.5"},
+      "fixed_version": "7.2.5",
+      "kev_date_added": "2024-02-09",
+      "known_ransomware_use": "Unknown",
+      "severity": "critical",
+      "remediation": "Upgrade FortiOS to a fixed version.",
+      "references": ["https://www.fortiguard.com/psirt"],
+      "cpg_ids": ["1.A"]
+    },
+    {
+      "cve_id": "CVE-2023-46747",
+      "vendor": "f5",
+      "product": "BIG-IP",
+      "product_families": ["BIG-IP"],
+      "affected_versions": {"operator": "lt", "version": "17.1.1"},
+      "fixed_version": "17.1.1",
+      "kev_date_added": "2023-11-15",
+      "known_ransomware_use": "Unknown",
+      "severity": "high",
+      "remediation": "Upgrade BIG-IP to a fixed release.",
+      "references": ["https://my.f5.com/manage/s/article/K000137353"],
+      "cpg_ids": ["1.A"]
+    },
+    {
+      "cve_id": "CVE-2024-20353",
+      "vendor": "cisco",
+      "product": "ASA",
+      "product_families": ["ASA"],
+      "affected_versions": {"operator": "lt", "version": "9.18(3)"},
+      "fixed_version": "9.18(3)",
+      "kev_date_added": "2024-07-10",
+      "known_ransomware_use": "Unknown",
+      "severity": "high",
+      "remediation": "Upgrade Cisco ASA to a fixed software release.",
+      "references": ["https://sec.cloudapps.cisco.com/security/center/"],
+      "cpg_ids": ["1.A"]
+    },
+    {
+      "cve_id": "CVE-2024-3400",
+      "vendor": "paloalto",
+      "product": "PAN-OS",
+      "product_families": ["GlobalProtect"],
+      "affected_versions": {"operator": "lt", "version": "11.0.3"},
+      "fixed_version": "11.0.3",
+      "kev_date_added": "2024-04-15",
+      "known_ransomware_use": "Unknown",
+      "severity": "critical",
+      "remediation": "Apply vendor fixes or mitigations for PAN-OS.",
+      "references": ["https://security.paloaltonetworks.com/"],
+      "cpg_ids": ["1.A"]
+    },
+    {
+      "cve_id": "CVE-2025-22457",
+      "vendor": "ivanti",
+      "product": "Connect Secure",
+      "product_families": ["Connect Secure"],
+      "affected_versions": {"operator": "lt", "version": "22.5.2"},
+      "fixed_version": "22.5.2",
+      "kev_date_added": "2025-04-04",
+      "known_ransomware_use": "Unknown",
+      "severity": "critical",
+      "remediation": "Upgrade Ivanti Connect Secure to a fixed version.",
+      "references": ["https://forums.ivanti.com/"],
+      "cpg_ids": ["1.A"]
+    }
+  ]
+}

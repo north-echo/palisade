@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip setuptools wheel
+
+      - name: Install project and dev tools
+        run: |
+          python -m pip install -e .
+          python -m pip install pytest pytest-cov ruff mypy
+
+      - name: Run Ruff
+        run: ruff check .
+
+      - name: Run mypy
+        run: mypy
+
+      - name: Run tests
+        run: pytest --cov=src/palisade --cov-report=term-missing
