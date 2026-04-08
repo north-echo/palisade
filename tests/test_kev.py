@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from palisade.core.db import initialize_db_path
 from palisade.core.kev import (
     KevRecord,
@@ -24,6 +26,9 @@ from palisade.core.kev_sources import (
     SourceFetchResult,
     VulnCheckConfig,
     VulnCheckKevSourceAdapter,
+    default_source_adapters,
+    parse_backup_download_url,
+    parse_vulncheck_records,
 )
 
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "kev_sample.json"
@@ -133,15 +138,85 @@ def test_sync_source_adapter_imports_normalized_records(tmp_path: Path) -> None:
     assert get_sync_status(connection)["sources_enabled"] == "fake_source"
 
 
-def test_vulncheck_adapter_is_placeholder() -> None:
+def test_parse_vulncheck_backup_url() -> None:
+    url = parse_backup_download_url(
+        {"data": [{"url": "https://downloads.example.test/vulncheck-kev.json"}]}
+    )
+
+    assert url == "https://downloads.example.test/vulncheck-kev.json"
+
+
+def test_parse_vulncheck_records_normalizes_entries() -> None:
+    records = parse_vulncheck_records(
+        {
+            "_timestamp": "2026-04-08T10:00:00Z",
+            "data": [
+                {
+                    "vendorProject": "Citrix",
+                    "product": "NetScaler ADC",
+                    "shortDescription": "Example description",
+                    "vulnerabilityName": "Citrix example issue",
+                    "required_action": "Patch now",
+                    "knownRansomwareCampaignUse": "Unknown",
+                    "cve": ["CVE-2099-0002"],
+                    "vulncheck_xdb": [
+                        {"xdb_url": "https://vulncheck.example.test/xdb/1"}
+                    ],
+                    "vulncheck_reported_exploitation": [
+                        {"url": "https://evidence.example.test/post"}
+                    ],
+                    "reported_exploited_by_vulncheck_canaries": True,
+                    "dueDate": "2026-04-10T00:00:00Z",
+                    "cisa_date_added": "2026-04-11T00:00:00Z",
+                    "date_added": "2026-04-08T00:00:00Z",
+                }
+            ],
+        },
+        "https://downloads.example.test/vulncheck-kev.json",
+    )
+
+    assert len(records) == 1
+    assert records[0].source == "vulncheck_kev"
+    assert records[0].source_url == "https://evidence.example.test/post"
+    assert records[0].date_added == "2026-04-08"
+    assert records[0].due_date == "2026-04-10"
+    assert records[0].notes is not None
+
+
+def test_vulncheck_adapter_fetches_backup_and_payload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     adapter = VulnCheckKevSourceAdapter(VulnCheckConfig(api_token="test-token"))
 
-    try:
-        adapter.fetch()
-    except NotImplementedError as exc:
-        assert "not implemented yet" in str(exc)
-    else:
-        raise AssertionError("Expected VulnCheck adapter to be a placeholder")
+    def fake_fetch_json_url(
+        url: str, *, bearer_token: str | None = None, timeout: int = 30
+    ) -> dict[str, object]:
+        del timeout
+        assert bearer_token == "test-token"
+        if url.endswith("/v3/backup/vulncheck-kev"):
+            return {"data": [{"url": "https://downloads.example.test/vulncheck-kev.json"}]}
+        return {
+            "_timestamp": "2026-04-08T10:00:00Z",
+            "data": [
+                {
+                    "vendorProject": "Citrix",
+                    "product": "NetScaler ADC",
+                    "shortDescription": "Example description",
+                    "vulnerabilityName": "Citrix example issue",
+                    "required_action": "Patch now",
+                    "knownRansomwareCampaignUse": "Unknown",
+                    "cve": ["CVE-2099-0002"],
+                    "date_added": "2026-04-08T00:00:00Z",
+                }
+            ],
+        }
+
+    monkeypatch.setattr("palisade.core.kev_sources.fetch_json_url", fake_fetch_json_url)
+    result = adapter.fetch()
+
+    assert result.source == "vulncheck_kev"
+    assert len(result.records) == 1
+    assert result.records[0].cve_id == "CVE-2099-0002"
 
 
 def test_file_source_adapter_loads_supplemental_records(tmp_path: Path) -> None:
@@ -179,3 +254,15 @@ def test_file_source_adapter_loads_supplemental_records(tmp_path: Path) -> None:
     assert result.catalog_version == "test-1"
     assert len(result.records) == 1
     assert result.records[0].source == "vulncheck_kev"
+
+
+def test_default_source_adapters_include_vulncheck_when_env_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VULNCHECK_API_TOKEN", "env-token")
+
+    adapters = default_source_adapters()
+
+    assert len(adapters) == 2
+    assert adapters[0].source_name == "cisa_kev"
+    assert adapters[1].source_name == "vulncheck_kev"

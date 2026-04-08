@@ -6,6 +6,7 @@ import ipaddress
 import json
 import sqlite3
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,9 @@ class ScanFinding:
     version_detected: str
     version_fixed: str | None
     confidence: str
+    kev_sources: tuple[str, ...]
+    kev_source_confidences: tuple[str, ...]
+    evidence_urls: tuple[str, ...]
     remediation: str | None
     cpg_ids: tuple[str, ...]
 
@@ -48,6 +52,8 @@ class ScanOptions:
     ports: tuple[int, ...] = (443, 4443, 8443, 10443)
     connection_timeout: float = 5.0
     read_timeout: float = 10.0
+    kev_scope: str = "expanded"
+    concurrency: int = 1
 
 
 class EdgeAuditScanner:
@@ -66,21 +72,13 @@ class EdgeAuditScanner:
         """Run a scan against expanded targets."""
         scan_id = str(uuid.uuid4())
         expanded_targets = expand_targets(targets)
-        self._create_scan(scan_id, ",".join(targets))
+        self._create_scan(scan_id, ",".join(targets), options)
 
         devices: list[DeviceFingerprint] = []
         findings: list[ScanFinding] = []
 
         try:
-            for target in expanded_targets:
-                fingerprints = fingerprint_host(
-                    target,
-                    list(options.ports),
-                    config=ProbeConfig(
-                        connection_timeout=options.connection_timeout,
-                        read_timeout=options.read_timeout,
-                    ),
-                )
+            for _, fingerprints in self._fingerprint_targets(expanded_targets, options):
                 for fingerprint in fingerprints:
                     if options.vendor_filter and (
                         fingerprint.vendor is None
@@ -91,7 +89,11 @@ class EdgeAuditScanner:
                     devices.append(fingerprint)
                     if options.discover_only:
                         continue
-                    findings.extend(self._match_and_store_findings(scan_id, device_id, fingerprint))
+                    findings.extend(
+                        self._match_and_store_findings(
+                            scan_id, device_id, fingerprint, options.kev_scope
+                        )
+                    )
         except Exception:
             self._update_scan(scan_id, "failed", len(devices), len(findings))
             raise
@@ -114,6 +116,8 @@ class EdgeAuditScanner:
                 completed_at,
                 target_spec,
                 status,
+                kev_scope,
+                concurrency,
                 device_count,
                 finding_count
             FROM scans
@@ -150,15 +154,17 @@ class EdgeAuditScanner:
             return None
         return str(row["scan_id"])
 
-    def _create_scan(self, scan_id: str, target_spec: str) -> None:
+    def _create_scan(self, scan_id: str, target_spec: str, options: ScanOptions) -> None:
         started_at = utc_now()
         with self.connection:
             self.connection.execute(
                 """
-                INSERT INTO scans(scan_id, started_at, target_spec, status)
-                VALUES (?, ?, ?, 'running')
+                INSERT INTO scans(
+                    scan_id, started_at, target_spec, kev_scope, concurrency, status
+                )
+                VALUES (?, ?, ?, ?, ?, 'running')
                 """,
-                (scan_id, started_at, target_spec),
+                (scan_id, started_at, target_spec, options.kev_scope, options.concurrency),
             )
 
     def _update_scan(
@@ -200,7 +206,7 @@ class EdgeAuditScanner:
         return device_id
 
     def _match_and_store_findings(
-        self, scan_id: str, device_id: str, fingerprint: DeviceFingerprint
+        self, scan_id: str, device_id: str, fingerprint: DeviceFingerprint, kev_scope: str
     ) -> list[ScanFinding]:
         if (
             fingerprint.vendor is None
@@ -220,6 +226,9 @@ class EdgeAuditScanner:
                 },
             ):
                 continue
+            source_rows = self._get_source_rows(signature.cve_id, kev_scope)
+            if not source_rows:
+                continue
             finding = ScanFinding(
                 cve_id=signature.cve_id,
                 vendor=fingerprint.vendor,
@@ -227,6 +236,15 @@ class EdgeAuditScanner:
                 version_detected=fingerprint.version,
                 version_fixed=signature.fixed_version,
                 confidence=fingerprint.confidence,
+                kev_sources=tuple(str(row["source"]) for row in source_rows),
+                kev_source_confidences=tuple(
+                    str(row["source_confidence"]) for row in source_rows
+                ),
+                evidence_urls=tuple(
+                    str(row["source_url"])
+                    for row in source_rows
+                    if row["source_url"] is not None and str(row["source_url"])
+                ),
                 remediation=signature.remediation,
                 cpg_ids=signature.cpg_ids,
             )
@@ -240,8 +258,9 @@ class EdgeAuditScanner:
                 """
                 INSERT INTO findings(
                     finding_id, scan_id, device_id, cve_id, vendor, product,
-                    version_detected, version_fixed, confidence, cpg_ids, remediation
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    version_detected, version_fixed, confidence, kev_sources,
+                    kev_source_confidences, evidence_urls, cpg_ids, remediation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(uuid.uuid4()),
@@ -253,10 +272,70 @@ class EdgeAuditScanner:
                     finding.version_detected,
                     finding.version_fixed,
                     finding.confidence,
+                    ",".join(finding.kev_sources),
+                    ",".join(finding.kev_source_confidences),
+                    "\n".join(finding.evidence_urls),
                     ",".join(finding.cpg_ids),
                     finding.remediation,
                 ),
             )
+
+    def _fingerprint_targets(
+        self, expanded_targets: list[str], options: ScanOptions
+    ) -> list[tuple[str, list[DeviceFingerprint]]]:
+        probe_config = ProbeConfig(
+            connection_timeout=options.connection_timeout,
+            read_timeout=options.read_timeout,
+        )
+        if options.concurrency <= 1 or len(expanded_targets) <= 1:
+            return [
+                (
+                    target,
+                    fingerprint_host(target, list(options.ports), config=probe_config),
+                )
+                for target in expanded_targets
+            ]
+
+        def run_target(target: str) -> tuple[str, list[DeviceFingerprint]]:
+            return target, fingerprint_host(target, list(options.ports), config=probe_config)
+
+        with ThreadPoolExecutor(max_workers=options.concurrency) as executor:
+            return list(executor.map(run_target, expanded_targets))
+
+    def _get_source_rows(self, cve_id: str, kev_scope: str) -> list[sqlite3.Row]:
+        all_rows = self.connection.execute(
+            """
+            SELECT source, source_confidence, source_url
+            FROM kev_sources
+            WHERE cve_id = ?
+            ORDER BY source
+            """,
+            (cve_id,),
+        ).fetchall()
+        if kev_scope == "strict":
+            rows = [row for row in all_rows if str(row["source"]) == "cisa_kev"]
+            if rows:
+                return rows
+            if all_rows:
+                return []
+            return self._fallback_source_rows("cisa_kev_bundle")
+
+        if all_rows:
+            return all_rows
+        return self._fallback_source_rows("signature_bundle")
+
+    def _fallback_source_rows(self, source_name: str) -> list[sqlite3.Row]:
+        row = self.connection.execute(
+            """
+            SELECT
+                ? AS source,
+                'bundled_signature' AS source_confidence,
+                NULL AS source_url
+            """,
+            (source_name,),
+        ).fetchone()
+        assert row is not None
+        return [row]
 
 
 def parse_targets(target: str | None, target_file: Path | None) -> list[str]:

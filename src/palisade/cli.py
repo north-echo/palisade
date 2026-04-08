@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import click
@@ -14,7 +15,12 @@ from palisade.core.kev import (
     import_kev_json_file,
     sync_source_adapter,
 )
-from palisade.core.kev_sources import FileKevSourceAdapter, default_source_adapters
+from palisade.core.kev_sources import (
+    FileKevSourceAdapter,
+    VulnCheckConfig,
+    VulnCheckKevSourceAdapter,
+    default_source_adapters,
+)
 from palisade.core.report import render_report
 from palisade.edge_audit.scanner import (
     EdgeAuditScanner,
@@ -70,6 +76,11 @@ def main(ctx: click.Context, verbose: bool, db_path: Path) -> None:
     multiple=True,
     help="Import one or more supplemental exploited-vulnerability source files.",
 )
+@click.option(
+    "--vulncheck-token",
+    envvar="VULNCHECK_API_TOKEN",
+    help="Enable VulnCheck KEV sync using the provided API token.",
+)
 @click.pass_context
 def kev_sync(
     ctx: click.Context,
@@ -78,6 +89,7 @@ def kev_sync(
     export_path: Path | None,
     import_path: Path | None,
     supplemental_source_paths: tuple[Path, ...],
+    vulncheck_token: str | None,
 ) -> None:
     """Synchronize the local KEV cache."""
     db_path = ctx.obj["db_path"]
@@ -124,7 +136,7 @@ def kev_sync(
     try:
         total_synced = 0
         synced_sources: list[str] = []
-        for adapter in default_source_adapters():
+        for adapter in build_source_adapters(vulncheck_token):
             source_name, synced_count = sync_source_adapter(connection, adapter)
             synced_sources.append(source_name)
             total_synced += synced_count
@@ -143,6 +155,13 @@ def kev_sync(
 @click.option("--ports", help="Comma-separated management ports.")
 @click.option("--timeout", type=int, help="Connection timeout in seconds.")
 @click.option("--concurrency", type=int, help="Maximum concurrent connections.")
+@click.option(
+    "--kev-scope",
+    type=click.Choice(["strict", "expanded"]),
+    default="expanded",
+    show_default=True,
+    help="Use only CISA-backed KEV sources or include supplemental sources too.",
+)
 @click.option(
     "--output",
     "output_format",
@@ -165,6 +184,7 @@ def edge_audit(
     ports: str | None,
     timeout: int | None,
     concurrency: int | None,
+    kev_scope: str,
     output_format: str,
     report: bool,
     cpg_map: bool,
@@ -173,7 +193,7 @@ def edge_audit(
 ) -> None:
     """Run non-intrusive edge-device exposure triage."""
     db_path = ctx.obj["db_path"]
-    del concurrency, report, cpg_map
+    del report, cpg_map
     connection = initialize_db_path(db_path)
     scanner = EdgeAuditScanner(connection)
 
@@ -191,7 +211,8 @@ def edge_audit(
         for row in rows:
             click.echo(
                 f"{row['scan_id']} status={row['status']} devices={row['device_count']} "
-                f"findings={row['finding_count']} target={row['target_spec']}"
+                f"findings={row['finding_count']} scope={row['kev_scope']} "
+                f"concurrency={row['concurrency']} target={row['target_spec']}"
             )
         return
 
@@ -205,6 +226,8 @@ def edge_audit(
             ports=parse_ports(ports),
             connection_timeout=float(timeout) if timeout is not None else 5.0,
             read_timeout=float(timeout) if timeout is not None else 10.0,
+            kev_scope=kev_scope,
+            concurrency=validate_concurrency(concurrency),
         )
         result = scanner.scan(targets, scan_options)
     except Exception as exc:
@@ -227,7 +250,8 @@ def edge_audit(
     for finding in result.findings:
         click.echo(
             f"finding {finding.cve_id} vendor={finding.vendor} product={finding.product} "
-            f"version={finding.version_detected} fixed={finding.version_fixed or 'unknown'}"
+            f"version={finding.version_detected} fixed={finding.version_fixed or 'unknown'} "
+            f"sources={','.join(finding.kev_sources)}"
         )
 
 
@@ -282,3 +306,20 @@ def report_command(
         return
 
     click.echo(report_body)
+
+
+def build_source_adapters(vulncheck_token: str | None) -> list[object]:
+    """Return enabled remote source adapters for the current CLI invocation."""
+    adapters: list[object] = list(default_source_adapters())
+    if vulncheck_token and "VULNCHECK_API_TOKEN" not in os.environ:
+        adapters.append(VulnCheckKevSourceAdapter(VulnCheckConfig(api_token=vulncheck_token)))
+    return adapters
+
+
+def validate_concurrency(value: int | None) -> int:
+    """Return a valid concurrency setting."""
+    if value is None:
+        return 1
+    if value < 1:
+        raise ValueError("Concurrency must be at least 1")
+    return value

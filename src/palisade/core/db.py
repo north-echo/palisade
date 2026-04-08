@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Final
 
-SCHEMA_VERSION: Final[int] = 1
+SCHEMA_VERSION: Final[int] = 2
 
 SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
     """
@@ -60,6 +60,8 @@ SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
         completed_at TEXT,
         target_spec TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'running',
+        kev_scope TEXT NOT NULL DEFAULT 'expanded',
+        concurrency INTEGER NOT NULL DEFAULT 1,
         device_count INTEGER DEFAULT 0,
         finding_count INTEGER DEFAULT 0
     )
@@ -90,6 +92,9 @@ SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
         version_detected TEXT,
         version_fixed TEXT,
         confidence TEXT NOT NULL,
+        kev_sources TEXT,
+        kev_source_confidences TEXT,
+        evidence_urls TEXT,
         cpg_ids TEXT,
         remediation TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -114,6 +119,7 @@ def initialize_db(connection: sqlite3.Connection) -> None:
     with connection:
         for statement in SCHEMA_STATEMENTS:
             connection.execute(statement)
+        ensure_schema_compatibility(connection)
         connection.execute(
             """
             INSERT OR IGNORE INTO schema_migrations(version)
@@ -121,6 +127,51 @@ def initialize_db(connection: sqlite3.Connection) -> None:
             """,
             (SCHEMA_VERSION,),
         )
+
+
+def ensure_schema_compatibility(connection: sqlite3.Connection) -> None:
+    """Apply additive compatibility changes for older local databases."""
+    ensure_column(
+        connection,
+        "scans",
+        "kev_scope",
+        "ALTER TABLE scans ADD COLUMN kev_scope TEXT NOT NULL DEFAULT 'expanded'",
+    )
+    ensure_column(
+        connection,
+        "scans",
+        "concurrency",
+        "ALTER TABLE scans ADD COLUMN concurrency INTEGER NOT NULL DEFAULT 1",
+    )
+    ensure_column(
+        connection,
+        "findings",
+        "kev_sources",
+        "ALTER TABLE findings ADD COLUMN kev_sources TEXT",
+    )
+    ensure_column(
+        connection,
+        "findings",
+        "kev_source_confidences",
+        "ALTER TABLE findings ADD COLUMN kev_source_confidences TEXT",
+    )
+    ensure_column(
+        connection,
+        "findings",
+        "evidence_urls",
+        "ALTER TABLE findings ADD COLUMN evidence_urls TEXT",
+    )
+
+
+def ensure_column(
+    connection: sqlite3.Connection, table_name: str, column_name: str, statement: str
+) -> None:
+    """Add a column if it does not already exist."""
+    rows = connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+    existing_columns = {str(row["name"]) for row in rows}
+    if column_name in existing_columns:
+        return
+    connection.execute(statement)
 
 
 def initialize_db_path(path: Path) -> sqlite3.Connection:

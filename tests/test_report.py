@@ -6,12 +6,34 @@ import pytest
 
 from palisade.core.db import initialize_db_path
 from palisade.core.device import DeviceFingerprint
+from palisade.core.kev import KevRecord, upsert_kev_records
 from palisade.core.report import render_report
 from palisade.edge_audit.scanner import EdgeAuditScanner, ScanOptions
 
 
 def make_scan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[EdgeAuditScanner, str]:
     connection = initialize_db_path(tmp_path / "palisade.db")
+    upsert_kev_records(
+        connection,
+        [
+            KevRecord(
+                cve_id="CVE-2024-21762",
+                vendor_project="Fortinet",
+                product="FortiOS",
+                vulnerability_name="Fortinet issue",
+                date_added="2026-04-08",
+                short_description=None,
+                required_action="Patch now",
+                due_date=None,
+                known_ransomware_use="Unknown",
+                notes=None,
+                source="cisa_kev",
+                source_record_id="CVE-2024-21762",
+                source_confidence="authoritative_public",
+                source_url="https://www.cisa.gov/kev",
+            )
+        ],
+    )
     scanner = EdgeAuditScanner(connection)
 
     def fake_fingerprint_host(
@@ -47,6 +69,8 @@ def test_render_text_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert "scan-id:" in report
     assert "Devices:" in report
     assert "Findings:" in report
+    assert "kev-scope:" in report
+    assert "sources=cisa_kev" in report
 
 
 def test_render_json_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -73,3 +97,4 @@ def test_render_html_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert "<html" in report
     assert "PALISADE Report" in report
     assert "<ul>" in report
+    assert "sources=cisa_kev" in report

@@ -185,6 +185,27 @@ def test_edge_audit_json_output(
     assert '"findings"' in result.output
 
 
+def test_edge_audit_rejects_invalid_concurrency(tmp_path: Path) -> None:
+    runner = CliRunner()
+    db_path = tmp_path / "palisade.db"
+
+    result = runner.invoke(
+        main,
+        [
+            "--db-path",
+            str(db_path),
+            "edge-audit",
+            "--target",
+            "192.0.2.15",
+            "--concurrency",
+            "0",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Concurrency must be at least 1" in result.output
+
+
 def test_edge_audit_history_output(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -218,6 +239,7 @@ def test_edge_audit_history_output(
     history_result = runner.invoke(main, ["--db-path", str(db_path), "edge-audit", "--history"])
     assert history_result.exit_code == 0
     assert "status=completed" in history_result.output
+    assert "scope=expanded" in history_result.output
 
 
 def test_report_latest_json_output(

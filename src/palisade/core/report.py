@@ -17,6 +17,8 @@ def render_text_report(
         f"started-at: {scan['started_at']}",
         f"completed-at: {scan['completed_at'] or 'incomplete'}",
         f"target-spec: {scan['target_spec']}",
+        f"kev-scope: {scan['kev_scope']}",
+        f"concurrency: {scan['concurrency']}",
         f"devices: {len(devices)}",
         f"findings: {len(findings)}",
         "",
@@ -34,8 +36,11 @@ def render_text_report(
         lines.append(
             f"- {finding['cve_id']} vendor={finding['vendor']} product={finding['product']} "
             f"version={finding['version_detected'] or 'unknown'} "
-            f"fixed={finding['version_fixed'] or 'unknown'}"
+            f"fixed={finding['version_fixed'] or 'unknown'} "
+            f"sources={finding['kev_sources'] or 'unknown'}"
         )
+        if finding["evidence_urls"]:
+            lines.append(f"  evidence={finding['evidence_urls']}")
     return "\n".join(lines)
 
 
@@ -69,7 +74,8 @@ def render_html_report(
         f"{escape(str(finding['cve_id']))} "
         f"{escape(str(finding['vendor']))} "
         f"{escape(str(finding['product']))} "
-        f"{escape(str(finding['version_detected'] or 'unknown'))}"
+        f"{escape(str(finding['version_detected'] or 'unknown'))} "
+        f"sources={escape(str(finding['kev_sources'] or 'unknown'))}"
         "</li>"
         for finding in findings
     )
@@ -94,6 +100,8 @@ def render_html_report(
     <dt>Started</dt><dd>{escape(str(scan['started_at']))}</dd>
     <dt>Completed</dt><dd>{escape(str(scan['completed_at'] or 'incomplete'))}</dd>
     <dt>Target Spec</dt><dd>{escape(str(scan['target_spec']))}</dd>
+    <dt>KEV Scope</dt><dd>{escape(str(scan['kev_scope']))}</dd>
+    <dt>Concurrency</dt><dd>{escape(str(scan['concurrency']))}</dd>
   </dl>
   <h2>Devices</h2>
   <ul>{device_items}</ul>

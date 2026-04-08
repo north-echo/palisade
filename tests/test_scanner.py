@@ -6,6 +6,7 @@ import pytest
 
 from palisade.core.db import initialize_db_path
 from palisade.core.device import DeviceFingerprint
+from palisade.core.kev import KevRecord, upsert_kev_records
 from palisade.edge_audit.scanner import (
     EdgeAuditScanner,
     ScanOptions,
@@ -75,6 +76,28 @@ def test_scan_matches_signatures_and_persists_findings(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     connection = initialize_db_path(tmp_path / "palisade.db")
+    upsert_kev_records(
+        connection,
+        [
+            KevRecord(
+                cve_id="CVE-2024-21762",
+                vendor_project="Fortinet",
+                product="FortiOS",
+                vulnerability_name="Fortinet issue",
+                date_added="2026-04-08",
+                short_description=None,
+                required_action="Patch now",
+                due_date=None,
+                known_ransomware_use="Unknown",
+                notes=None,
+                source="cisa_kev",
+                source_record_id="CVE-2024-21762",
+                source_confidence="authoritative_public",
+                source_url="https://www.cisa.gov/kev",
+            )
+        ],
+        catalog_version="2026.04.08",
+    )
     scanner = EdgeAuditScanner(connection)
 
     def fake_fingerprint_host(
@@ -106,6 +129,61 @@ def test_scan_matches_signatures_and_persists_findings(
     assert len(devices) == 1
     assert len(findings) == 1
     assert findings[0]["vendor"] == "Fortinet"
+    assert findings[0]["kev_sources"] == "cisa_kev"
+
+
+def test_scan_uses_strict_scope_to_exclude_supplemental_only_findings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    connection = initialize_db_path(tmp_path / "palisade.db")
+    upsert_kev_records(
+        connection,
+        [
+            KevRecord(
+                cve_id="CVE-2024-21762",
+                vendor_project="Fortinet",
+                product="FortiOS",
+                vulnerability_name="Fortinet issue",
+                date_added="2026-04-08",
+                short_description=None,
+                required_action="Patch now",
+                due_date=None,
+                known_ransomware_use="Unknown",
+                notes=None,
+                source="vulncheck_kev",
+                source_record_id="VC-21762",
+                source_confidence="commercial_evidence_based",
+                source_url="https://vulncheck.example.test/CVE-2024-21762",
+            )
+        ],
+    )
+    scanner = EdgeAuditScanner(connection)
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ip, ports, config
+        return [
+            DeviceFingerprint(
+                ip="192.0.2.11",
+                port=443,
+                vendor="Fortinet",
+                product="FortiOS",
+                version="7.2.4",
+                method="http_header",
+                raw_data="fixture",
+                confidence="high",
+            )
+        ]
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+
+    strict_result = scanner.scan(["192.0.2.11"], ScanOptions(kev_scope="strict"))
+    expanded_result = scanner.scan(["192.0.2.11"], ScanOptions(kev_scope="expanded"))
+
+    assert strict_result.findings == []
+    assert len(expanded_result.findings) == 1
+    assert expanded_result.findings[0].kev_sources == ("vulncheck_kev",)
 
 
 def test_scan_vendor_filter_excludes_non_matching_results(
@@ -170,3 +248,23 @@ def test_result_to_json_contains_devices_and_findings(
     assert '"scan_id"' in payload
     assert '"devices"' in payload
     assert '"findings"' in payload
+
+
+def test_scan_records_concurrency_in_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    connection = initialize_db_path(tmp_path / "palisade.db")
+    scanner = EdgeAuditScanner(connection)
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ip, ports, config
+        return []
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+
+    scanner.scan(["192.0.2.13", "192.0.2.14"], ScanOptions(concurrency=2))
+    history = scanner.list_history()
+
+    assert history[0]["concurrency"] == 2
