@@ -1,0 +1,7 @@
+{
+  "db_path": "data/palisade.db",
+  "default_kev_scope": "expanded",
+  "default_concurrency": 2,
+  "default_artifact_dir": "artifacts",
+  "vulncheck_token": ""
+}
