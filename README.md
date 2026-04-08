@@ -25,4 +25,5 @@ Useful docs:
 - [docs/GETTING_STARTED.md](./docs/GETTING_STARTED.md)
 - [docs/CONFIG.md](./docs/CONFIG.md)
 - [docs/DEMO.md](./docs/DEMO.md)
+- [docs/LAB_VALIDATION.md](./docs/LAB_VALIDATION.md)
 - [CONTRIBUTING.md](./CONTRIBUTING.md)
