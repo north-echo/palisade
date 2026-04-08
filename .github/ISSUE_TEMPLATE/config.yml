@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: PALISADE Docs
+    url: https://github.com/north-echo/palisade
+    about: Check the project docs and issue backlog before opening a new issue.
