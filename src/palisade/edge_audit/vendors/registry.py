@@ -29,6 +29,7 @@ def get_matchers() -> list[Matcher]:
     global _MATCHERS
     if _MATCHERS is None:
         from palisade.edge_audit.vendors.cisco import match_cisco
+        from palisade.edge_audit.vendors.citrix import match_citrix
         from palisade.edge_audit.vendors.f5 import match_f5
         from palisade.edge_audit.vendors.fortinet import match_fortinet
         from palisade.edge_audit.vendors.ivanti import match_ivanti
@@ -36,6 +37,7 @@ def get_matchers() -> list[Matcher]:
         from palisade.edge_audit.vendors.sonicwall import match_sonicwall
 
         _MATCHERS = [
+            match_citrix,
             match_sonicwall,
             match_fortinet,
             match_f5,

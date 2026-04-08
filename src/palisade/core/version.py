@@ -27,7 +27,7 @@ class ParsedVersion:
 
 SEMVER_RE: Final[re.Pattern[str]] = re.compile(r"[0-9]+(?:\.[0-9A-Za-z]+)+")
 SONICWALL_RE: Final[re.Pattern[str]] = re.compile(
-    r"[0-9]+(?:\.[0-9A-Za-z]+)+(?:-[0-9A-Za-z]+)?"
+    r"[0-9]+(?:\.[0-9A-Za-z]+)+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?"
 )
 ASA_RE: Final[re.Pattern[str]] = re.compile(r"([0-9]+)\.([0-9]+)\(([0-9]+)\)")
 
@@ -41,6 +41,8 @@ def parse_version(vendor: str, version_string: str) -> ParsedVersion:
 
     if vendor_key == "sonicwall":
         return ParsedVersion(vendor_key, parse_sonicwall(text))
+    if vendor_key == "citrix":
+        return ParsedVersion(vendor_key, parse_citrix(text))
     if vendor_key in {"fortinet", "f5", "paloalto", "ivanti"}:
         return ParsedVersion(vendor_key, parse_semver_like(text))
     if vendor_key == "cisco":
@@ -83,6 +85,7 @@ def normalize_vendor(vendor: str) -> str:
         "fortinet": "fortinet",
         "f5": "f5",
         "cisco": "cisco",
+        "citrix": "citrix",
         "ivanti": "ivanti",
         "sonicwall": "sonicwall",
     }
@@ -121,6 +124,11 @@ def parse_cisco(text: str) -> tuple[int | str, ...]:
     if match is None:
         return parse_semver_like(text)
     return tuple(int(part) for part in match.groups())
+
+
+def parse_citrix(text: str) -> tuple[int | str, ...]:
+    """Parse Citrix NetScaler versions like 14.1-6.50 or 13.1-52.19."""
+    return parse_sonicwall(text)
 
 
 def split_alpha_numeric(value: str) -> list[int | str]:

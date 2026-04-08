@@ -13,6 +13,11 @@ def test_parse_fortinet_version() -> None:
     assert parsed.parts == (7, 2, 4)
 
 
+def test_parse_citrix_version() -> None:
+    parsed = parse_version("citrix", "NetScaler ADC 14.1-6.50")
+    assert parsed.parts == (14, 1, 6, 50)
+
+
 def test_parse_cisco_version() -> None:
     parsed = parse_version("cisco", "Cisco ASA Version 9.18(2)")
     assert parsed.parts == (9, 18, 2)

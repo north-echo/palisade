@@ -357,7 +357,15 @@ def query_by_cve(connection: sqlite3.Connection, cve_id: str) -> sqlite3.Row | N
 
 def query_edge_devices(connection: sqlite3.Connection) -> list[sqlite3.Row]:
     """Return KEV rows for the supported edge-focused vendors."""
-    vendors = ("Cisco", "F5", "Fortinet", "Ivanti", "Palo Alto Networks", "SonicWall")
+    vendors = (
+        "Cisco",
+        "Citrix",
+        "F5",
+        "Fortinet",
+        "Ivanti",
+        "Palo Alto Networks",
+        "SonicWall",
+    )
     placeholders = ", ".join("?" for _ in vendors)
     return connection.execute(
         f"""

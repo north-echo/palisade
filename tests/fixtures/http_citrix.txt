@@ -1,0 +1,13 @@
+status: 200
+reason: OK
+Server: CitrixADC
+Set-Cookie: NSC_AAAC=xyz;Path=/;Secure;HttpOnly
+X-Citrix-Application: Citrix Gateway
+
+<html>
+<head><title>Citrix Gateway</title></head>
+<body>
+Citrix NetScaler ADC build 14.1-6.50
+<a href="/vpn/index.html">Login</a>
+</body>
+</html>

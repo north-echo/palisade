@@ -384,6 +384,71 @@ def test_report_previous_diff_json_output(
     assert '"resolved_findings"' in result.output
 
 
+def test_scan_export_and_import_cli_round_trip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    source_db = tmp_path / "source.db"
+    dest_db = tmp_path / "dest.db"
+    fixture_path = Path(__file__).parent / "fixtures" / "kev_sample.json"
+    bundle_path = tmp_path / "scan_bundle.zip"
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ports, config
+        return [
+            DeviceFingerprint(
+                ip=ip,
+                port=443,
+                vendor="Fortinet",
+                product="FortiOS",
+                version="7.2.4",
+                method="http_header",
+                raw_data="fixture",
+                confidence="high",
+            )
+        ]
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+    runner.invoke(
+        main,
+        ["--db-path", str(source_db), "kev-sync", "--import", str(fixture_path)],
+    )
+    scan_result = runner.invoke(
+        main,
+        ["--db-path", str(source_db), "edge-audit", "--target", "192.0.2.50"],
+    )
+    assert scan_result.exit_code == 0
+
+    export_result = runner.invoke(
+        main,
+        [
+            "--db-path",
+            str(source_db),
+            "scan-export",
+            "--latest",
+            "--output",
+            str(bundle_path),
+        ],
+    )
+    assert export_result.exit_code == 0
+    assert bundle_path.exists()
+
+    import_result = runner.invoke(
+        main,
+        [
+            "--db-path",
+            str(dest_db),
+            "scan-import",
+            "--input",
+            str(bundle_path),
+        ],
+    )
+    assert import_result.exit_code == 0
+    assert "imported scan bundle for scan-id" in import_result.output
+
+
 def test_report_writes_html_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

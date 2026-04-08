@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from palisade.edge_audit.vendors.cisco import match_cisco
+from palisade.edge_audit.vendors.citrix import match_citrix
 from palisade.edge_audit.vendors.f5 import match_f5
 from palisade.edge_audit.vendors.fortinet import match_fortinet
 from palisade.edge_audit.vendors.ivanti import match_ivanti
@@ -26,6 +27,18 @@ def test_match_sonicwall_http_fixture() -> None:
     assert result.vendor == "SonicWall"
     assert result.product == "SonicOS"
     assert result.version == "7.0.1-5035"
+    assert result.confidence == "high"
+
+
+def test_match_citrix_http_fixture() -> None:
+    raw_data = load_fixture("http_citrix.txt")
+
+    result = match_citrix("192.0.2.59", 443, "http_header", raw_data)
+
+    assert result is not None
+    assert result.vendor == "Citrix"
+    assert result.product == "NetScaler ADC"
+    assert result.version == "14.1-6.50"
     assert result.confidence == "high"
 
 

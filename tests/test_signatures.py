@@ -14,8 +14,9 @@ from palisade.edge_audit.signatures.loader import (
 def test_load_default_signatures() -> None:
     signatures = load_signatures()
 
-    assert len(signatures) == 6
+    assert len(signatures) == 8
     assert query_signature_by_cve(signatures, "CVE-2024-3400") is not None
+    assert query_signature_by_cve(signatures, "CVE-2023-4966") is not None
 
 
 def test_query_signatures_by_vendor_and_product() -> None:
@@ -25,6 +26,15 @@ def test_query_signatures_by_vendor_and_product() -> None:
 
     assert len(results) == 1
     assert results[0].cve_id == "CVE-2024-21762"
+
+
+def test_query_signatures_returns_citrix_branch_signatures() -> None:
+    signatures = load_signatures()
+
+    results = query_signatures(signatures, "citrix", "NetScaler ADC")
+
+    assert len(results) == 2
+    assert all(result.cve_id == "CVE-2023-4966" for result in results)
 
 
 def test_load_custom_signature_file(tmp_path: Path) -> None:

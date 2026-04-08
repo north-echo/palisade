@@ -8,6 +8,7 @@ from pathlib import Path
 import click
 
 from palisade import __version__
+from palisade.core.artifact import export_scan_bundle, import_scan_bundle
 from palisade.core.db import initialize_db_path
 from palisade.core.kev import (
     export_kev_json_file,
@@ -355,6 +356,56 @@ def report_command(
         return
 
     click.echo(report_body)
+
+
+@main.command("scan-export")
+@click.option("--scan-id", help="Export a specific scan.")
+@click.option("--latest", is_flag=True, help="Export the most recent scan.")
+@click.option(
+    "--output",
+    "output_path",
+    required=True,
+    type=click.Path(path_type=Path),
+    help="Write the scan bundle to this zip file.",
+)
+@click.pass_context
+def scan_export_command(
+    ctx: click.Context, scan_id: str | None, latest: bool, output_path: Path
+) -> None:
+    """Export a persisted scan as a bundle."""
+    db_path = ctx.obj["db_path"]
+    connection = initialize_db_path(db_path)
+    scanner = EdgeAuditScanner(connection)
+
+    selected_scan_id = scanner.get_latest_scan_id() if latest else scan_id
+    if selected_scan_id is None:
+        raise click.ClickException("No scan available for export")
+
+    try:
+        export_scan_bundle(connection, selected_scan_id, output_path)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"exported scan bundle to {output_path}")
+
+
+@main.command("scan-import")
+@click.option(
+    "--input",
+    "input_path",
+    required=True,
+    type=click.Path(exists=True, path_type=Path),
+    help="Read a scan bundle zip file.",
+)
+@click.pass_context
+def scan_import_command(ctx: click.Context, input_path: Path) -> None:
+    """Import a persisted scan bundle."""
+    db_path = ctx.obj["db_path"]
+    connection = initialize_db_path(db_path)
+    try:
+        scan_id = import_scan_bundle(connection, input_path)
+    except Exception as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"imported scan bundle for scan-id {scan_id}")
 
 
 def build_source_adapters(vulncheck_token: str | None) -> list[object]:

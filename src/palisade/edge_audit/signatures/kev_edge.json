@@ -3,6 +3,34 @@
   "generated_at": "2026-04-08T00:00:00Z",
   "signatures": [
     {
+      "cve_id": "CVE-2023-4966",
+      "vendor": "citrix",
+      "product": "NetScaler ADC",
+      "product_families": ["NetScaler ADC", "NetScaler Gateway"],
+      "affected_versions": {"operator": "lt", "version": "13.1-49.15"},
+      "fixed_version": "13.1-49.15",
+      "kev_date_added": "2023-10-19",
+      "known_ransomware_use": "Unknown",
+      "severity": "critical",
+      "remediation": "Upgrade NetScaler ADC/Gateway 13.1 builds to 13.1-49.15 or later.",
+      "references": ["https://support.citrix.com/article/CTX579459"],
+      "cpg_ids": ["1.A"]
+    },
+    {
+      "cve_id": "CVE-2023-4966",
+      "vendor": "citrix",
+      "product": "NetScaler ADC",
+      "product_families": ["NetScaler ADC", "NetScaler Gateway"],
+      "affected_versions": {"operator": "lt", "version": "14.1-8.50"},
+      "fixed_version": "14.1-8.50",
+      "kev_date_added": "2023-10-19",
+      "known_ransomware_use": "Unknown",
+      "severity": "critical",
+      "remediation": "Upgrade NetScaler ADC/Gateway 14.1 builds to 14.1-8.50 or later.",
+      "references": ["https://support.citrix.com/article/CTX579459"],
+      "cpg_ids": ["1.A"]
+    },
+    {
       "cve_id": "CVE-2024-40766",
       "vendor": "sonicwall",
       "product": "SonicOS",
