@@ -268,3 +268,63 @@ def test_scan_records_concurrency_in_history(
     history = scanner.list_history()
 
     assert history[0]["concurrency"] == 2
+
+
+def test_diff_scans_reports_new_and_resolved_findings(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    connection = initialize_db_path(tmp_path / "palisade.db")
+    upsert_kev_records(
+        connection,
+        [
+            KevRecord(
+                cve_id="CVE-2024-21762",
+                vendor_project="Fortinet",
+                product="FortiOS",
+                vulnerability_name="Fortinet issue",
+                date_added="2026-04-08",
+                short_description=None,
+                required_action="Patch now",
+                due_date=None,
+                known_ransomware_use="Unknown",
+                notes=None,
+                source="cisa_kev",
+                source_record_id="CVE-2024-21762",
+                source_confidence="authoritative_public",
+                source_url="https://www.cisa.gov/kev",
+            )
+        ],
+    )
+    scanner = EdgeAuditScanner(connection)
+    call_count = {"count": 0}
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ip, ports, config
+        call_count["count"] += 1
+        if call_count["count"] == 1:
+            return [
+                DeviceFingerprint(
+                    ip="192.0.2.20",
+                    port=443,
+                    vendor="Fortinet",
+                    product="FortiOS",
+                    version="7.2.4",
+                    method="http_header",
+                    raw_data="fixture",
+                    confidence="high",
+                )
+            ]
+        return []
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+
+    first = scanner.scan(["192.0.2.20"], ScanOptions())
+    second = scanner.scan(["192.0.2.20"], ScanOptions())
+    diff = scanner.diff_scans(first.scan_id, second.scan_id)
+
+    assert diff.baseline_scan_id == first.scan_id
+    assert diff.current_scan_id == second.scan_id
+    assert len(diff.new_findings) == 0
+    assert len(diff.resolved_findings) == 1

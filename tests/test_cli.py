@@ -280,6 +280,110 @@ def test_report_latest_json_output(
     assert '"findings"' in result.output
 
 
+def test_report_filters_findings_by_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    db_path = tmp_path / "palisade.db"
+    fixture_path = Path(__file__).parent / "fixtures" / "kev_sample.json"
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ports, config
+        return [
+            DeviceFingerprint(
+                ip=ip,
+                port=443,
+                vendor="Fortinet",
+                product="FortiOS",
+                version="7.2.4",
+                method="http_header",
+                raw_data="fixture",
+                confidence="high",
+            )
+        ]
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+    runner.invoke(
+        main,
+        ["--db-path", str(db_path), "kev-sync", "--import", str(fixture_path)],
+    )
+    runner.invoke(
+        main,
+        ["--db-path", str(db_path), "edge-audit", "--target", "192.0.2.18"],
+    )
+    result = runner.invoke(
+        main,
+        [
+            "--db-path",
+            str(db_path),
+            "report",
+            "--latest",
+            "--source",
+            "cisa_kev",
+            "--findings-only",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "filter-source: cisa_kev" in result.output
+    assert "findings-only: yes" in result.output
+
+
+def test_report_previous_diff_json_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    db_path = tmp_path / "palisade.db"
+    fixture_path = Path(__file__).parent / "fixtures" / "kev_sample.json"
+    call_count = {"count": 0}
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ip, ports, config
+        call_count["count"] += 1
+        if call_count["count"] == 1:
+            return [
+                DeviceFingerprint(
+                    ip="192.0.2.18",
+                    port=443,
+                    vendor="Fortinet",
+                    product="FortiOS",
+                    version="7.2.4",
+                    method="http_header",
+                    raw_data="fixture",
+                    confidence="high",
+                )
+            ]
+        return []
+
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+    runner.invoke(
+        main,
+        ["--db-path", str(db_path), "kev-sync", "--import", str(fixture_path)],
+    )
+    first = runner.invoke(
+        main,
+        ["--db-path", str(db_path), "edge-audit", "--target", "192.0.2.18"],
+    )
+    assert first.exit_code == 0
+    second = runner.invoke(
+        main,
+        ["--db-path", str(db_path), "edge-audit", "--target", "192.0.2.18"],
+    )
+    assert second.exit_code == 0
+    result = runner.invoke(
+        main,
+        ["--db-path", str(db_path), "report", "--latest", "--previous", "--format", "json"],
+    )
+
+    assert result.exit_code == 0
+    assert '"diff"' in result.output
+    assert '"resolved_findings"' in result.output
+
+
 def test_report_writes_html_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

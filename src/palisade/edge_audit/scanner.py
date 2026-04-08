@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from palisade.core.device import DeviceFingerprint, ProbeConfig, fingerprint_host
+from palisade.core.report import ReportDiff
 from palisade.core.version import is_affected
 from palisade.edge_audit.signatures.loader import Signature, load_signatures, query_signatures
 
@@ -153,6 +154,42 @@ class EdgeAuditScanner:
         if row is None:
             return None
         return str(row["scan_id"])
+
+    def get_previous_scan_id(self, scan_id: str) -> str | None:
+        """Return the scan ID immediately before the given scan."""
+        row = self.connection.execute(
+            """
+            SELECT previous.scan_id
+            FROM scans AS current
+            JOIN scans AS previous
+              ON previous.started_at < current.started_at
+            WHERE current.scan_id = ?
+            ORDER BY previous.started_at DESC
+            LIMIT 1
+            """,
+            (scan_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return str(row["scan_id"])
+
+    def diff_scans(self, baseline_scan_id: str, current_scan_id: str) -> ReportDiff:
+        """Return a finding-level diff between two scans."""
+        _, baseline_findings = self.get_scan_rows(baseline_scan_id)
+        _, current_findings = self.get_scan_rows(current_scan_id)
+        baseline_index = {finding_identity(row): row for row in baseline_findings}
+        current_index = {finding_identity(row): row for row in current_findings}
+
+        new_keys = sorted(current_index.keys() - baseline_index.keys())
+        resolved_keys = sorted(baseline_index.keys() - current_index.keys())
+        unchanged_keys = sorted(current_index.keys() & baseline_index.keys())
+        return ReportDiff(
+            baseline_scan_id=baseline_scan_id,
+            current_scan_id=current_scan_id,
+            new_findings=[current_index[key] for key in new_keys],
+            resolved_findings=[baseline_index[key] for key in resolved_keys],
+            unchanged_findings=[current_index[key] for key in unchanged_keys],
+        )
 
     def _create_scan(self, scan_id: str, target_spec: str, options: ScanOptions) -> None:
         started_at = utc_now()
@@ -394,3 +431,13 @@ def result_to_json(result: ScanResult) -> str:
 def utc_now() -> str:
     """Return a UTC timestamp string."""
     return datetime.now(timezone.utc).isoformat()
+
+
+def finding_identity(row: sqlite3.Row) -> tuple[str, str, str, str]:
+    """Return a stable finding identity for diffing."""
+    return (
+        str(row["cve_id"]),
+        str(row["vendor"]),
+        str(row["product"]),
+        str(row["version_detected"] or ""),
+    )

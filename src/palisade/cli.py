@@ -21,7 +21,7 @@ from palisade.core.kev_sources import (
     VulnCheckKevSourceAdapter,
     default_source_adapters,
 )
-from palisade.core.report import render_report
+from palisade.core.report import ReportFilters, filter_report_rows, render_report
 from palisade.edge_audit.scanner import (
     EdgeAuditScanner,
     ScanOptions,
@@ -174,6 +174,7 @@ def kev_sync(
 @click.option("--cpg-map", is_flag=True, help="Include CPG mapping in output.")
 @click.option("--history", is_flag=True, help="List previous scans.")
 @click.option("--scan-id", help="Show a specific historical scan.")
+@click.option("--diff", "show_diff", is_flag=True, help="Show diff against the previous scan.")
 @click.pass_context
 def edge_audit(
     ctx: click.Context,
@@ -190,6 +191,7 @@ def edge_audit(
     cpg_map: bool,
     history: bool,
     scan_id: str | None,
+    show_diff: bool,
 ) -> None:
     """Run non-intrusive edge-device exposure triage."""
     db_path = ctx.obj["db_path"]
@@ -207,6 +209,14 @@ def edge_audit(
             click.echo(f"scan-id: {scan_id}")
             click.echo(f"devices: {len(devices)}")
             click.echo(f"findings: {len(findings)}")
+            if show_diff:
+                baseline_scan_id = scanner.get_previous_scan_id(scan_id)
+                if baseline_scan_id is None:
+                    raise click.ClickException("No previous scan available for diffing")
+                diff = scanner.diff_scans(baseline_scan_id, scan_id)
+                click.echo(f"baseline-scan-id: {baseline_scan_id}")
+                click.echo(f"new-findings: {len(diff.new_findings)}")
+                click.echo(f"resolved-findings: {len(diff.resolved_findings)}")
             return
         for row in rows:
             click.echo(
@@ -258,6 +268,12 @@ def edge_audit(
 @main.command("report")
 @click.option("--scan-id", help="Generate a report for a specific scan.")
 @click.option("--latest", is_flag=True, help="Generate a report for the most recent scan.")
+@click.option("--compare-to", help="Compare the selected scan to a baseline scan id.")
+@click.option("--previous", is_flag=True, help="Compare the selected scan to the previous scan.")
+@click.option("--vendor", help="Filter report rows to a vendor.")
+@click.option("--source", help="Filter report findings to a KEV source.")
+@click.option("--cve", "cve_id", help="Filter report findings to a CVE.")
+@click.option("--findings-only", is_flag=True, help="Suppress device rows in the report.")
 @click.option(
     "--format",
     "report_format",
@@ -277,6 +293,12 @@ def report_command(
     ctx: click.Context,
     scan_id: str | None,
     latest: bool,
+    compare_to: str | None,
+    previous: bool,
+    vendor: str | None,
+    source: str | None,
+    cve_id: str | None,
+    findings_only: bool,
     report_format: str,
     output_path: Path | None,
 ) -> None:
@@ -298,7 +320,34 @@ def report_command(
         raise click.ClickException(f"Unknown scan id: {selected_scan_id}")
 
     devices, findings = scanner.get_scan_rows(selected_scan_id)
-    report_body = render_report(report_format, scan, devices, findings)
+    filters = ReportFilters(
+        vendor=vendor,
+        source=source,
+        cve_id=cve_id,
+        findings_only=findings_only,
+    )
+    filtered_devices, filtered_findings = filter_report_rows(devices, findings, filters)
+    diff = None
+    if compare_to is not None and previous:
+        raise click.ClickException("Use either --compare-to or --previous, not both")
+    baseline_scan_id = compare_to
+    if previous:
+        baseline_scan_id = scanner.get_previous_scan_id(selected_scan_id)
+        if baseline_scan_id is None:
+            raise click.ClickException("No previous scan available for diffing")
+    if baseline_scan_id is not None:
+        baseline_scan = scanner.get_scan(baseline_scan_id)
+        if baseline_scan is None:
+            raise click.ClickException(f"Unknown scan id: {baseline_scan_id}")
+        diff = scanner.diff_scans(baseline_scan_id, selected_scan_id)
+    report_body = render_report(
+        report_format,
+        scan,
+        filtered_devices,
+        filtered_findings,
+        filters=filters,
+        diff=diff,
+    )
 
     if output_path is not None:
         output_path.write_text(report_body, encoding="utf-8")
