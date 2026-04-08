@@ -1,0 +1,21 @@
+{
+  "catalogVersion": "demo-citrix-2026.04.08",
+  "records": [
+    {
+      "cve_id": "CVE-2023-4966",
+      "vendor_project": "Citrix",
+      "product": "NetScaler ADC",
+      "vulnerability_name": "Citrix NetScaler Sensitive Information Disclosure Vulnerability",
+      "date_added": "2023-10-19",
+      "short_description": "Demo fixture for Citrix support and supplemental-source reporting.",
+      "required_action": "Upgrade to a fixed NetScaler build.",
+      "due_date": "2023-10-26",
+      "known_ransomware_use": "Unknown",
+      "notes": "Demo supplemental source fixture",
+      "source": "vulncheck_kev",
+      "source_record_id": "demo-citrix-4966",
+      "source_confidence": "commercial_evidence_based",
+      "source_url": "https://example.test/demo/citrix-4966"
+    }
+  ]
+}

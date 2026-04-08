@@ -1,0 +1,31 @@
+{
+  "catalogVersion": "demo-2026.04.08",
+  "count": 2,
+  "title": "PALISADE Demo KEV Fixture",
+  "vulnerabilities": [
+    {
+      "cveID": "CVE-2024-21762",
+      "vendorProject": "Fortinet",
+      "product": "FortiOS",
+      "vulnerabilityName": "Fortinet FortiOS SSL VPN Out-of-Bounds Write Vulnerability",
+      "dateAdded": "2024-02-09",
+      "shortDescription": "Demo fixture for FortiOS matching.",
+      "requiredAction": "Upgrade FortiOS to a fixed version.",
+      "dueDate": "2024-02-16",
+      "knownRansomwareCampaignUse": "Unknown",
+      "notes": "Demo fixture"
+    },
+    {
+      "cveID": "CVE-2024-40766",
+      "vendorProject": "SonicWall",
+      "product": "SonicOS",
+      "vulnerabilityName": "SonicWall SonicOS Authentication Bypass Vulnerability",
+      "dateAdded": "2024-09-09",
+      "shortDescription": "Demo fixture for SonicWall matching.",
+      "requiredAction": "Upgrade SonicOS to a fixed version.",
+      "dueDate": "2024-09-16",
+      "knownRansomwareCampaignUse": "Known",
+      "notes": "Demo fixture"
+    }
+  ]
+}

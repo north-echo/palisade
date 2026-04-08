@@ -111,6 +111,7 @@ PYTHONPATH=src python3 tools/run_validation.py
 - [Demo runbook](./docs/DEMO.md)
 - [Lab validation](./docs/LAB_VALIDATION.md)
 - [Release checklist](./docs/RELEASE.md)
+- [Security policy](./SECURITY.md)
 - [Changelog](./CHANGELOG.md)
 - [Contributing](./CONTRIBUTING.md)
 

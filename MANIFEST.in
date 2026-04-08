@@ -1,0 +1,7 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+include palisade.example.json
+recursive-include docs *.md
+recursive-include demo *.md *.json
+recursive-include src/palisade/edge_audit/signatures *.json

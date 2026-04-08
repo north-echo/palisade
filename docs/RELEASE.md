@@ -16,6 +16,7 @@ Run:
 ruff check .
 mypy
 pytest -q
+python3 tools/check_release.py
 ```
 
 If available on a normal development host, also run:
@@ -31,6 +32,7 @@ Confirm these are current:
 
 - [README.md](../README.md)
 - [PALISADE_README.md](../PALISADE_README.md)
+- [SECURITY.md](../SECURITY.md)
 - [docs/GETTING_STARTED.md](./GETTING_STARTED.md)
 - [docs/CONFIG.md](./CONFIG.md)
 - [docs/DEMO.md](./DEMO.md)
