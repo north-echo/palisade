@@ -12,8 +12,9 @@ from palisade.core.kev import (
     export_kev_json_file,
     get_sync_status,
     import_kev_json_file,
-    sync_kev_feed,
+    sync_source_adapter,
 )
+from palisade.core.kev_sources import FileKevSourceAdapter, default_source_adapters
 from palisade.core.report import render_report
 from palisade.edge_audit.scanner import (
     EdgeAuditScanner,
@@ -62,6 +63,13 @@ def main(ctx: click.Context, verbose: bool, db_path: Path) -> None:
     type=click.Path(path_type=Path),
     help="Import KEV cache from a file.",
 )
+@click.option(
+    "--supplemental-source",
+    "supplemental_source_paths",
+    type=click.Path(path_type=Path),
+    multiple=True,
+    help="Import one or more supplemental exploited-vulnerability source files.",
+)
 @click.pass_context
 def kev_sync(
     ctx: click.Context,
@@ -69,6 +77,7 @@ def kev_sync(
     offline: bool,
     export_path: Path | None,
     import_path: Path | None,
+    supplemental_source_paths: tuple[Path, ...],
 ) -> None:
     """Synchronize the local KEV cache."""
     db_path = ctx.obj["db_path"]
@@ -77,6 +86,14 @@ def kev_sync(
     if import_path is not None:
         imported_count = import_kev_json_file(connection, import_path)
         click.echo(f"imported {imported_count} KEV records into {db_path}")
+
+    supplemental_total = 0
+    for supplemental_path in supplemental_source_paths:
+        source_name, synced_count = sync_source_adapter(
+            connection, FileKevSourceAdapter(supplemental_path)
+        )
+        supplemental_total += synced_count
+        click.echo(f"imported {synced_count} records from {source_name} into {db_path}")
 
     if export_path is not None:
         export_kev_json_file(connection, export_path)
@@ -91,7 +108,7 @@ def kev_sync(
         click.echo(f"sources: {kev_status['sources_enabled'] or 'none'}")
         return
 
-    if import_path is not None or export_path is not None:
+    if import_path is not None or export_path is not None or supplemental_total > 0:
         return
 
     if offline:
@@ -105,11 +122,17 @@ def kev_sync(
         return
 
     try:
-        synced_count = sync_kev_feed(connection)
+        total_synced = 0
+        synced_sources: list[str] = []
+        for adapter in default_source_adapters():
+            source_name, synced_count = sync_source_adapter(connection, adapter)
+            synced_sources.append(source_name)
+            total_synced += synced_count
     except Exception as exc:
         raise click.ClickException(f"KEV sync failed: {exc}") from exc
 
-    click.echo(f"synced {synced_count} KEV records into {db_path}")
+    click.echo(f"synced {total_synced} KEV records into {db_path}")
+    click.echo(f"sources: {', '.join(synced_sources)}")
 
 
 @main.command("edge-audit")

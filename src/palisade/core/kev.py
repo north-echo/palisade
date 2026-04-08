@@ -187,8 +187,14 @@ def upsert_kev_records(
         set_meta(connection, "total_count", str(len(records)))
         if catalog_version is not None:
             set_meta(connection, "catalog_version", catalog_version)
-        source_names = sorted({record.source for record in records})
-        set_meta(connection, "kev_sources_enabled", ",".join(source_names))
+        existing_sources = get_meta(connection, "kev_sources_enabled")
+        existing_set = (
+            {item for item in existing_sources.split(",") if item}
+            if existing_sources is not None
+            else set()
+        )
+        source_names = existing_set | {record.source for record in records}
+        set_meta(connection, "kev_sources_enabled", ",".join(sorted(source_names)))
 
 
 def import_kev_json_file(connection: sqlite3.Connection, path: Path) -> int:
@@ -208,6 +214,21 @@ def sync_kev_feed(connection: sqlite3.Connection, *, url: str = KEV_FEED_URL) ->
     """Fetch the live KEV feed and store it in SQLite."""
     payload = fetch_kev_feed(url=url)
     return import_kev_payload(connection, payload)
+
+
+def sync_source_adapter(
+    connection: sqlite3.Connection, adapter: object
+) -> tuple[str, int]:
+    """Fetch from a source adapter and store normalized records."""
+    fetch = getattr(adapter, "fetch")
+    result = fetch()
+    source = str(getattr(result, "source"))
+    catalog_version = getattr(result, "catalog_version")
+    records = getattr(result, "records")
+    if not isinstance(records, list) or not all(isinstance(item, KevRecord) for item in records):
+        raise ValueError("Source adapter returned invalid record payload")
+    upsert_kev_records(connection, records, catalog_version=catalog_version)
+    return source, len(records)
 
 
 def export_kev_json_file(connection: sqlite3.Connection, path: Path) -> None:

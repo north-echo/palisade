@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 import pytest
@@ -9,7 +8,8 @@ from click.testing import CliRunner
 from palisade import __version__, cli
 from palisade.cli import main
 from palisade.core.device import DeviceFingerprint
-from palisade.core.kev import import_kev_json_file
+from palisade.core.kev import load_kev_json, parse_kev_payload
+from palisade.core.kev_sources import SourceFetchResult
 
 
 def test_cli_help_renders() -> None:
@@ -65,14 +65,25 @@ def test_kev_sync_live_fetch_path(
     db_path = tmp_path / "palisade.db"
     fixture_path = Path(__file__).parent / "fixtures" / "kev_sample.json"
 
-    def fake_sync_kev_feed(connection: sqlite3.Connection) -> int:
-        return import_kev_json_file(connection, fixture_path)
+    def fake_default_source_adapters() -> list[object]:
+        class FakeAdapter:
+            def fetch(self) -> SourceFetchResult:
+                payload = load_kev_json(fixture_path)
+                records, catalog_version = parse_kev_payload(payload)
+                return SourceFetchResult(
+                    source="cisa_kev",
+                    catalog_version=catalog_version,
+                    records=records,
+                )
 
-    monkeypatch.setattr(cli, "sync_kev_feed", fake_sync_kev_feed)
+        return [FakeAdapter()]
+
+    monkeypatch.setattr(cli, "default_source_adapters", fake_default_source_adapters)
     result = runner.invoke(main, ["--db-path", str(db_path), "kev-sync"])
 
     assert result.exit_code == 0
     assert "synced 3 KEV records" in result.output
+    assert "sources: cisa_kev" in result.output
 
 
 def test_kev_sync_offline_reports_local_status(tmp_path: Path) -> None:
@@ -90,6 +101,54 @@ def test_kev_sync_offline_reports_local_status(tmp_path: Path) -> None:
     assert "offline mode requested" in result.output
     assert "total-count: 3" in result.output
     assert "sources: cisa_kev" in result.output
+
+
+def test_kev_sync_imports_supplemental_source_file(tmp_path: Path) -> None:
+    runner = CliRunner()
+    db_path = tmp_path / "palisade.db"
+    supplemental_path = tmp_path / "supplemental.json"
+    supplemental_path.write_text(
+        """
+        {
+          "catalogVersion": "extra-1",
+          "records": [
+            {
+              "cve_id": "CVE-2099-0002",
+              "vendor_project": "Citrix",
+              "product": "NetScaler ADC",
+              "vulnerability_name": "Example exploited vulnerability",
+              "date_added": "2026-01-01",
+              "short_description": "Example description",
+              "required_action": "Patch immediately",
+              "due_date": "2026-01-15",
+              "known_ransomware_use": "Unknown",
+              "notes": "Supplemental source note",
+              "source": "vulncheck_kev",
+              "source_record_id": "VC-1",
+              "source_confidence": "commercial_evidence_based",
+              "source_url": "https://example.test/vc-1"
+            }
+          ]
+        }
+        """,
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "--db-path",
+            str(db_path),
+            "kev-sync",
+            "--supplemental-source",
+            str(supplemental_path),
+            "--status",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "imported 1 records from file:supplemental" in result.output
+    assert "sources: vulncheck_kev" in result.output
 
 
 def test_edge_audit_json_output(
