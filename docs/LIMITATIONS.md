@@ -20,6 +20,8 @@ Current vendor support is limited to:
 - Palo Alto
 - Ivanti
 - Citrix
+- pfSense
+- OPNsense
 
 Unsupported devices may be missed entirely or classified as unknown.
 

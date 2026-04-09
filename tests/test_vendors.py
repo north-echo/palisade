@@ -7,7 +7,9 @@ from palisade.edge_audit.vendors.citrix import match_citrix
 from palisade.edge_audit.vendors.f5 import match_f5
 from palisade.edge_audit.vendors.fortinet import match_fortinet
 from palisade.edge_audit.vendors.ivanti import match_ivanti
+from palisade.edge_audit.vendors.opnsense import match_opnsense
 from palisade.edge_audit.vendors.paloalto import match_paloalto
+from palisade.edge_audit.vendors.pfsense import match_pfsense
 from palisade.edge_audit.vendors.registry import match_fingerprint
 from palisade.edge_audit.vendors.sonicwall import match_sonicwall
 
@@ -152,6 +154,50 @@ def test_match_ivanti_banner_fixture() -> None:
     assert result is not None
     assert result.method == "banner"
     assert result.version == "22.5.1"
+
+
+def test_match_pfsense_http_fixture() -> None:
+    raw_data = load_fixture("http_pfsense.txt")
+
+    result = match_pfsense("192.0.2.72", 443, "http_header", raw_data)
+
+    assert result is not None
+    assert result.vendor == "pfSense"
+    assert result.product == "pfSense"
+    assert result.version == "2.7.2"
+    assert result.confidence == "high"
+
+
+def test_match_opnsense_http_fixture() -> None:
+    raw_data = load_fixture("http_opnsense.txt")
+
+    result = match_opnsense("192.0.2.73", 443, "http_header", raw_data)
+
+    assert result is not None
+    assert result.vendor == "OPNsense"
+    assert result.product == "OPNsense"
+    assert result.version == "24.1.5"
+    assert result.confidence == "high"
+
+
+def test_registry_matches_pfsense_fixture() -> None:
+    raw_data = load_fixture("http_pfsense.txt")
+
+    result = match_fingerprint("192.0.2.74", 443, "http_header", raw_data)
+
+    assert result is not None
+    assert result.vendor == "pfSense"
+    assert result.product == "pfSense"
+
+
+def test_registry_matches_opnsense_fixture() -> None:
+    raw_data = load_fixture("http_opnsense.txt")
+
+    result = match_fingerprint("192.0.2.75", 443, "http_header", raw_data)
+
+    assert result is not None
+    assert result.vendor == "OPNsense"
+    assert result.product == "OPNsense"
 
 
 def test_registry_matches_paloalto_fixture() -> None:

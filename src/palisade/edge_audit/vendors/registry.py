@@ -33,11 +33,15 @@ def get_matchers() -> list[Matcher]:
         from palisade.edge_audit.vendors.f5 import match_f5
         from palisade.edge_audit.vendors.fortinet import match_fortinet
         from palisade.edge_audit.vendors.ivanti import match_ivanti
+        from palisade.edge_audit.vendors.opnsense import match_opnsense
         from palisade.edge_audit.vendors.paloalto import match_paloalto
+        from palisade.edge_audit.vendors.pfsense import match_pfsense
         from palisade.edge_audit.vendors.sonicwall import match_sonicwall
 
         _MATCHERS = [
             match_citrix,
+            match_pfsense,
+            match_opnsense,
             match_sonicwall,
             match_fortinet,
             match_f5,

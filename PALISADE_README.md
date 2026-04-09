@@ -88,7 +88,7 @@ PALISADE is most useful if you need something that is:
 
 | Module | Description | Status |
 |--------|-------------|--------|
-| **`edge-audit`** | Best-effort exposure triage for edge devices (SonicWall, Fortinet, F5, Cisco, Palo Alto, Ivanti, Citrix) using non-intrusive fingerprinting plus curated KEV signature matching | 🔨 In Progress |
+| **`edge-audit`** | Best-effort exposure triage for edge devices (SonicWall, Fortinet, F5, Cisco, Palo Alto, Ivanti, Citrix, pfSense, OPNsense) using non-intrusive fingerprinting plus curated KEV signature matching | 🔨 In Progress |
 | **`net-discover`** | Lightweight OT network asset discovery and traffic mapping using commodity hardware | 📋 Planned |
 | **`harden`** | Prioritized, environment-specific hardening checklists for common utility OT configurations | 📋 Planned |
 | **`ir-runbooks`** | Fill-in-the-blank incident response runbooks for OT-specific scenarios | 📋 Planned |
@@ -156,6 +156,8 @@ This is deliberately not a full attack-surface management platform. The design g
 | Palo Alto | PAN-OS, GlobalProtect | TLS cert, headers, body patterns, banner |
 | Ivanti | Connect Secure, Policy Secure | TLS cert, headers, body patterns, banner |
 | Citrix | NetScaler ADC, Gateway | TLS cert, headers, body patterns, banner |
+| pfSense | pfSense CE, pfSense Plus | TLS cert, headers, body patterns |
+| OPNsense | OPNsense | TLS cert, headers, body patterns |
 
 ### How It Works
 

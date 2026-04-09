@@ -1,0 +1,16 @@
+status: 200
+reason: OK
+Server: nginx
+Content-Type: text/html; charset=UTF-8
+
+<!doctype html>
+<html lang="en">
+<head>
+  <title>OPNsense</title>
+  <meta name="application-name" content="OPNsense 24.1.5">
+</head>
+<body>
+  <img src="/ui/img/opnsense-logo.png" alt="OPNsense">
+  <script>var banner = "OPNsense 24.1.5";</script>
+</body>
+</html>

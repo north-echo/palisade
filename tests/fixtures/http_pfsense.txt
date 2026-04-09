@@ -1,0 +1,17 @@
+status: 200
+reason: OK
+Server: nginx
+X-pfSense: pfSense
+Content-Type: text/html; charset=UTF-8
+
+<!doctype html>
+<html lang="en">
+<head>
+  <title>pfSense Community Edition</title>
+  <meta name="generator" content="pfSense Community Edition 2.7.2">
+</head>
+<body>
+  <link rel="stylesheet" href="/themes/pfsense_ng/styles/default.css">
+  <h1>Netgate pfSense Community Edition</h1>
+</body>
+</html>

@@ -49,6 +49,8 @@ Current implemented capabilities:
   - Palo Alto
   - Ivanti
   - Citrix
+  - pfSense
+  - OPNsense
 - Text, JSON, and HTML reports
 - Scan history, filtering, and scan diffs
 - Scan bundle export/import for offline transfer
