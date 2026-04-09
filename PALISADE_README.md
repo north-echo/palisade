@@ -2,11 +2,13 @@
 
 **Practical Audit Library for Industrial Security, Asset Discovery, and Edge Defense**
 
-PALISADE is a free, open-source security toolkit for small and mid-size utilities, municipal systems, and critical infrastructure operators who don't have dedicated OT security teams or budgets for commercial platforms.
+PALISADE is a free, open-source edge-risk triage toolkit for small and mid-size utilities, municipal systems, and critical infrastructure operators who do not have dedicated OT security teams or budgets for platforms like Dragos, Claroty, Nozomi, or Tenable OT.
 
 Phase 1 focuses on a single capability: **unauthenticated edge-device exposure triage**. PALISADE identifies likely internet-facing or management-edge appliances, extracts whatever product/version evidence can be gathered safely, and highlights potentially relevant Known Exploited Vulnerabilities (KEVs) for operator review.
 
 PALISADE is designed for the gap between "we know this is a problem" and "we can afford an OT security platform." It turns public vulnerability intelligence and lightweight fingerprinting into a concrete, operator-usable action list.
+
+It is not another scanner. It is a pragmatic edge-risk triage layer for operators who need a smaller, more practical answer to exposed edge infrastructure risk.
 
 ## Why PALISADE Exists
 
@@ -23,6 +25,16 @@ Many utilities and municipal operators have neither. They still need a way to an
 - How do we document that work for leadership, regulators, or auditors?
 
 PALISADE is intended to answer those questions with local tooling, plain-language output, and a small operational footprint.
+
+## Why This Instead Of A Generic Scanner
+
+Generic scanners can identify services and sometimes flag CVEs, but they usually do not solve the actual operator problem on their own:
+
+- they are not tuned to the edge-device problem PALISADE is targeting
+- they often do not present findings in operator-oriented, evidence-preserving workflows
+- they do not frame exploited-vulnerability risk for smaller critical infrastructure teams with limited time and budget
+
+PALISADE is narrower than those tools on purpose. It trades breadth for a more opinionated workflow around edge-device risk, KEV prioritization, and usable reporting.
 
 ## The Problem
 
@@ -56,6 +68,7 @@ PALISADE is built for operators who need practical help more than platform engin
 
 PALISADE is not:
 
+- Another generic scanner with industrial branding
 - A passive full-network monitoring platform
 - A replacement for a professional penetration test or architecture review
 - An exploit framework or offensive security tool
@@ -69,6 +82,7 @@ PALISADE is most useful if you need something that is:
 - Opinionated enough to prioritize action
 - Local-first and usable in constrained environments
 - Written for operators instead of product buyers or threat researchers
+- Positioned between "do nothing" and "buy a full OT platform"
 
 ### Modules
 
