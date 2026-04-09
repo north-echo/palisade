@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-04-09T00:00:00Z",
+  "source_project": "example-research-project",
+  "entries": [
+    {
+      "cve_id": "CVE-2099-0001",
+      "vendor": "Example Vendor",
+      "product": "Example Edge Appliance",
+      "source": "research_watchlist",
+      "source_url": "https://example.test/advisories/CVE-2099-0001",
+      "exploitation_signal": "targeted scanning observed",
+      "ics_relevance": "possible",
+      "confidence": "medium",
+      "notes": "Candidate for PALISADE watchlist and possible future signature coverage after validation."
+    }
+  ]
+}

@@ -139,6 +139,8 @@ PYTHONPATH=src python3 tools/run_validation.py
 - [Limitations](./docs/LIMITATIONS.md)
 - [Architecture overview](./docs/ARCHITECTURE.md)
 - [Feedback questions](./docs/FEEDBACK_QUESTIONS.md)
+- [Intel handoff](./docs/INTEL_HANDOFF.md)
+- [Intel review](./docs/INTEL_REVIEW.md)
 - [Config](./docs/CONFIG.md)
 - [Demo runbook](./docs/DEMO.md)
 - [Lab validation](./docs/LAB_VALIDATION.md)

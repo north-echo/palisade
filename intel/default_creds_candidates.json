@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-04-09T00:00:00Z",
+  "source_project": "example-research-project",
+  "entries": [
+    {
+      "vendor": "Example Vendor",
+      "product": "Example Appliance",
+      "protocol": "http",
+      "username": "admin",
+      "password": "admin",
+      "source": "vendor_documentation",
+      "confidence": "medium",
+      "notes": "Candidate for future PALISADE hardening content after source verification."
+    }
+  ]
+}
