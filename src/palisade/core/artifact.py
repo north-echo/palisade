@@ -118,8 +118,9 @@ def import_scan_bundle(connection: sqlite3.Connection, input_path: Path) -> str:
             INSERT INTO findings(
                 finding_id, scan_id, device_id, asset_id, cve_id, vendor, product,
                 version_detected, version_fixed, confidence, kev_sources,
-                kev_source_confidences, evidence_urls, cpg_ids, remediation, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                kev_source_confidences, evidence_urls, cpg_ids, waterisac_ids,
+                remediation, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -137,6 +138,7 @@ def import_scan_bundle(connection: sqlite3.Connection, input_path: Path) -> str:
                     optional_string(finding, "kev_source_confidences"),
                     optional_string(finding, "evidence_urls"),
                     optional_string(finding, "cpg_ids"),
+                    optional_string(finding, "waterisac_ids"),
                     optional_string(finding, "remediation"),
                     require_string(finding, "created_at"),
                 )

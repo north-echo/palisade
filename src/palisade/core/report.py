@@ -7,6 +7,14 @@ import sqlite3
 from dataclasses import dataclass
 from html import escape
 
+from palisade.core.controls import (
+    CISA_CPGS,
+    WATERISAC_FUNDAMENTALS,
+    ControlDefinition,
+    render_control_labels,
+    summarize_control_coverage,
+)
+
 
 @dataclass(frozen=True)
 class ReportFilters:
@@ -142,8 +150,19 @@ def render_text_report(
             f"fixed={finding['version_fixed'] or 'unknown'} "
             f"sources={finding['kev_sources'] or 'unknown'}"
         )
+        cpg_labels = "; ".join(render_control_labels(str(finding["cpg_ids"] or ""), CISA_CPGS))
+        waterisac_labels = "; ".join(
+            render_control_labels(
+                str(finding["waterisac_ids"] or ""), WATERISAC_FUNDAMENTALS
+            )
+        )
+        if cpg_labels:
+            lines.append(f"  cisa-cpgs={cpg_labels}")
+        if waterisac_labels:
+            lines.append(f"  waterisac={waterisac_labels}")
         if finding["evidence_urls"]:
             lines.append(f"  evidence={finding['evidence_urls']}")
+    lines.extend(render_control_summary_lines(findings))
     if diff is not None:
         append_diff_text(lines, diff)
     return "\n".join(lines)
@@ -175,6 +194,7 @@ def render_json_report(
         "scan": build_report_metadata(scan, active_filters),
         "devices": [dict(device) for device in devices],
         "findings": [dict(finding) for finding in findings],
+        "control_summary": build_control_summary_payload(findings),
     }
     if diff is not None:
         payload["diff"] = {
@@ -208,15 +228,14 @@ def render_html_report(
         for device in devices
     )
     finding_items = "".join(
-        "<li>"
-        f"asset={escape(str(finding['asset_id'] or 'unknown'))} "
-        f"{escape(str(finding['cve_id']))} "
-        f"{escape(str(finding['vendor']))} "
-        f"{escape(str(finding['product']))} "
-        f"{escape(str(finding['version_detected'] or 'unknown'))} "
-        f"sources={escape(str(finding['kev_sources'] or 'unknown'))}"
-        "</li>"
-        for finding in findings
+        render_finding_html(finding) for finding in findings
+    )
+    control_summary = build_control_summary_payload(findings)
+    cpg_items = "".join(
+        f"<li>{escape(item)}</li>" for item in control_summary["cisa_cpgs"]
+    )
+    waterisac_items = "".join(
+        f"<li>{escape(item)}</li>" for item in control_summary["waterisac_fundamentals"]
     )
     diff_block = ""
     if diff is not None:
@@ -258,10 +277,71 @@ def render_html_report(
   <ul>{device_items}</ul>
   <h2>Findings</h2>
   <ul>{finding_items}</ul>
+  <h2>Control Alignment</h2>
+  <h3>CISA CPGs</h3>
+  <ul>{cpg_items}</ul>
+  <h3>WaterISAC Fundamentals</h3>
+  <ul>{waterisac_items}</ul>
   {diff_block}
 </body>
 </html>
 """
+
+
+def render_control_summary_lines(findings: list[sqlite3.Row]) -> list[str]:
+    """Render control summary lines for text reports."""
+    summary = build_control_summary_payload(findings)
+    lines = ["", "Control Alignment:"]
+    lines.append(
+        "CISA CPGs: "
+        + (", ".join(summary["cisa_cpgs"]) if summary["cisa_cpgs"] else "none")
+    )
+    lines.append(
+        "WaterISAC Fundamentals: "
+        + (
+            ", ".join(summary["waterisac_fundamentals"])
+            if summary["waterisac_fundamentals"]
+            else "none"
+        )
+    )
+    return lines
+
+
+def build_control_summary_payload(findings: list[sqlite3.Row]) -> dict[str, list[str]]:
+    """Build control coverage summary across findings."""
+    cpg_ids = summarize_control_coverage(findings, "cpg_ids")
+    waterisac_ids = summarize_control_coverage(findings, "waterisac_ids")
+    return {
+        "cisa_cpgs": render_control_labels(cpg_ids, CISA_CPGS),
+        "waterisac_fundamentals": render_control_labels(
+            waterisac_ids, WATERISAC_FUNDAMENTALS
+        ),
+    }
+
+
+def render_finding_controls(
+    finding: sqlite3.Row, field_name: str, definitions: dict[str, ControlDefinition]
+) -> str:
+    """Render a finding control field for HTML output."""
+    labels = render_control_labels(str(finding[field_name] or ""), definitions)
+    return "; ".join(labels) if labels else "none"
+
+
+def render_finding_html(finding: sqlite3.Row) -> str:
+    """Render a single finding list item for HTML reports."""
+    return (
+        "<li>"
+        f"asset={escape(str(finding['asset_id'] or 'unknown'))} "
+        f"{escape(str(finding['cve_id']))} "
+        f"{escape(str(finding['vendor']))} "
+        f"{escape(str(finding['product']))} "
+        f"{escape(str(finding['version_detected'] or 'unknown'))} "
+        f"sources={escape(str(finding['kev_sources'] or 'unknown'))}"
+        f"<br>cisa-cpgs={escape(render_finding_controls(finding, 'cpg_ids', CISA_CPGS))}"
+        "<br>waterisac="
+        f"{escape(render_finding_controls(finding, 'waterisac_ids', WATERISAC_FUNDAMENTALS))}"
+        "</li>"
+    )
 
 
 def render_report(

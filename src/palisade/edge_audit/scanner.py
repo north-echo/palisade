@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from palisade.core.asset import compute_asset_id
+from palisade.core.controls import derive_waterisac_ids
 from palisade.core.device import DeviceFingerprint, ProbeConfig, fingerprint_host
 from palisade.core.report import ReportDiff
 from palisade.core.version import is_affected
@@ -34,6 +35,7 @@ class ScanFinding:
     evidence_urls: tuple[str, ...]
     remediation: str | None
     cpg_ids: tuple[str, ...]
+    waterisac_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -296,6 +298,7 @@ class EdgeAuditScanner:
                 ),
                 remediation=signature.remediation,
                 cpg_ids=signature.cpg_ids,
+                waterisac_ids=derive_waterisac_ids(signature.cpg_ids),
             )
             self._insert_finding(scan_id, device_id, finding)
             findings.append(finding)
@@ -308,8 +311,8 @@ class EdgeAuditScanner:
                 INSERT INTO findings(
                     finding_id, scan_id, device_id, asset_id, cve_id, vendor, product,
                     version_detected, version_fixed, confidence, kev_sources,
-                    kev_source_confidences, evidence_urls, cpg_ids, remediation
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    kev_source_confidences, evidence_urls, cpg_ids, waterisac_ids, remediation
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     str(uuid.uuid4()),
@@ -326,6 +329,7 @@ class EdgeAuditScanner:
                     ",".join(finding.kev_source_confidences),
                     "\n".join(finding.evidence_urls),
                     ",".join(finding.cpg_ids),
+                    ",".join(finding.waterisac_ids),
                     finding.remediation,
                 ),
             )

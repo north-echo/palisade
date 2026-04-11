@@ -87,3 +87,4 @@ def test_import_scan_bundle_restores_scan(
     assert len(findings) == 1
     assert devices[0]["asset_id"] is not None
     assert findings[0]["asset_id"] == devices[0]["asset_id"]
+    assert findings[0]["waterisac_ids"] == "2,5,9"

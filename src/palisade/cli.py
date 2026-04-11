@@ -214,7 +214,7 @@ def edge_audit(
     """Run non-intrusive edge-device exposure triage."""
     db_path = ctx.obj["db_path"]
     config = ctx.obj["config"]
-    del report, cpg_map
+    del report
     connection = initialize_db_path(db_path)
     scanner = EdgeAuditScanner(connection)
 
@@ -282,6 +282,9 @@ def edge_audit(
             f"version={finding.version_detected} fixed={finding.version_fixed or 'unknown'} "
             f"sources={','.join(finding.kev_sources)}"
         )
+        if cpg_map:
+            click.echo(f"  cisa-cpgs={','.join(finding.cpg_ids) or 'none'}")
+            click.echo(f"  waterisac={','.join(finding.waterisac_ids) or 'none'}")
 
 
 @main.command("report")

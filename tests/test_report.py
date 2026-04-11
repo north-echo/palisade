@@ -72,6 +72,9 @@ def test_render_text_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert "kev-scope:" in report
     assert "sources=cisa_kev" in report
     assert "asset=" in report
+    assert "CISA CPGs: 1.A Mitigate Known Exploited Vulnerabilities" in report
+    assert "WaterISAC Fundamentals:" in report
+    assert "waterisac=2 Minimize Control System Exposure" in report
 
 
 def test_render_json_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,6 +88,8 @@ def test_render_json_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert '"scan"' in report
     assert '"devices"' in report
     assert '"findings"' in report
+    assert '"control_summary"' in report
+    assert '"waterisac_fundamentals"' in report
 
 
 def test_render_html_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -100,6 +105,8 @@ def test_render_html_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
     assert "<ul>" in report
     assert "sources=cisa_kev" in report
     assert "asset=" in report
+    assert "Control Alignment" in report
+    assert "Minimize Control System Exposure" in report
 
 
 def test_filter_report_rows_filters_by_vendor_and_findings_only(

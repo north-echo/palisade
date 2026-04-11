@@ -185,6 +185,45 @@ def test_edge_audit_json_output(
     assert '"findings"' in result.output
 
 
+def test_edge_audit_cpg_map_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    runner = CliRunner()
+    db_path = tmp_path / "palisade.db"
+    fixture_path = Path(__file__).parent / "fixtures" / "kev_sample.json"
+
+    def fake_fingerprint_host(
+        ip: str, ports: list[int], *, config: object | None = None
+    ) -> list[DeviceFingerprint]:
+        del ports, config
+        return [
+            DeviceFingerprint(
+                ip=ip,
+                port=443,
+                vendor="Fortinet",
+                product="FortiOS",
+                version="7.2.4",
+                method="http_header",
+                raw_data="fixture",
+                confidence="high",
+            )
+        ]
+
+    runner.invoke(
+        main,
+        ["--db-path", str(db_path), "kev-sync", "--import", str(fixture_path)],
+    )
+    monkeypatch.setattr("palisade.edge_audit.scanner.fingerprint_host", fake_fingerprint_host)
+    result = runner.invoke(
+        main,
+        ["--db-path", str(db_path), "edge-audit", "--target", "192.0.2.15", "--cpg-map"],
+    )
+
+    assert result.exit_code == 0
+    assert "cisa-cpgs=1.A" in result.output
+    assert "waterisac=2,5,9" in result.output
+
+
 def test_edge_audit_rejects_invalid_concurrency(tmp_path: Path) -> None:
     runner = CliRunner()
     db_path = tmp_path / "palisade.db"

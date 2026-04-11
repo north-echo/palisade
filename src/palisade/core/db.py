@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Final
 
-SCHEMA_VERSION: Final[int] = 3
+SCHEMA_VERSION: Final[int] = 4
 
 SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
     """
@@ -99,6 +99,7 @@ SCHEMA_STATEMENTS: Final[tuple[str, ...]] = (
         kev_source_confidences TEXT,
         evidence_urls TEXT,
         cpg_ids TEXT,
+        waterisac_ids TEXT,
         remediation TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
@@ -177,6 +178,12 @@ def ensure_schema_compatibility(connection: sqlite3.Connection) -> None:
         "findings",
         "evidence_urls",
         "ALTER TABLE findings ADD COLUMN evidence_urls TEXT",
+    )
+    ensure_column(
+        connection,
+        "findings",
+        "waterisac_ids",
+        "ALTER TABLE findings ADD COLUMN waterisac_ids TEXT",
     )
     connection.execute("CREATE INDEX IF NOT EXISTS idx_findings_asset ON findings(asset_id)")
     backfill_asset_ids(connection)
