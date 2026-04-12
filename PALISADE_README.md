@@ -2,7 +2,7 @@
 
 **Practical Audit Library for Industrial Security, Asset Discovery, and Edge Defense**
 
-PALISADE is a free, open-source edge-risk triage toolkit for small and mid-size utilities, municipal systems, and critical infrastructure operators who do not have dedicated OT security teams or budgets for platforms like Dragos, Claroty, Nozomi, or Tenable OT.
+PALISADE is a free, open-source edge-risk triage toolkit for under-resourced critical infrastructure, municipal, public-sector, and industrial operators who do not have dedicated OT security teams or budgets for platforms like Dragos, Claroty, Nozomi, or Tenable OT.
 
 Phase 1 focuses on a single capability: **unauthenticated edge-device exposure triage**. PALISADE identifies likely internet-facing or management-edge appliances, extracts whatever product/version evidence can be gathered safely, and highlights potentially relevant Known Exploited Vulnerabilities (KEVs) for operator review.
 
@@ -17,7 +17,7 @@ Most OT security offerings assume one of two environments:
 - A mature program with budget for commercial monitoring and asset visibility
 - A security team with time to translate threat intelligence into environment-specific action
 
-Many utilities and municipal operators have neither. They still need a way to answer basic questions:
+Many smaller operators have neither. They still need a way to answer basic questions:
 
 - What edge devices are we exposing?
 - Which of them are likely tied to known exploited vulnerabilities?
@@ -25,6 +25,8 @@ Many utilities and municipal operators have neither. They still need a way to an
 - How do we document that work for leadership, regulators, or auditors?
 
 PALISADE is intended to answer those questions with local tooling, plain-language output, and a small operational footprint.
+
+Water and wastewater environments are an important validation lane for PALISADE because they appear to reflect many of the resource and adoption constraints the project is trying to address. They are not the only environments the tool can serve.
 
 ## Why This Instead Of A Generic Scanner
 
@@ -38,14 +40,14 @@ PALISADE is narrower than those tools on purpose. It trades breadth for a more o
 
 ## The Problem
 
-Thousands of water utilities, electric co-ops, transit agencies, and municipal systems run critical infrastructure with:
+Many smaller critical infrastructure and public-sector operators run important systems with:
 
 - No visibility into what's on their OT networks
 - No budget for commercial OT security platforms (Dragos, Claroty, Nozomi)
 - One IT person who also manages email, phones, and printers
 - Edge devices (firewalls, VPN appliances, remote access gateways) exposed to the internet with known-exploited vulnerabilities
 - No incident response plan for OT environments
-- Compliance requirements (CISA CPGs, AWIA, state regulations) with no practical path to meet them
+- Compliance or reporting requirements with no practical path to meet them
 
 Meanwhile, adversaries like Volt Typhoon are actively targeting these exact organizations — not through exotic zero-days on PLCs, but through unpatched edge devices and basic network hygiene failures.
 
@@ -59,9 +61,9 @@ For the first release, that means producing a defensible, evidence-backed shortl
 
 PALISADE is built for operators who need practical help more than platform engineering:
 
-- Small and mid-size utilities
-- Municipal IT/OT teams
-- Electric co-ops and public works environments
+- Small and mid-size critical infrastructure operators
+- Municipal and public-sector IT/OT teams
+- Co-ops, public works, and operational environments with limited security capacity
 - Security-conscious operators working without a dedicated OT security product budget
 
 ## What It Is Not
@@ -93,7 +95,7 @@ PALISADE is most useful if you need something that is:
 | **`harden`** | Prioritized, environment-specific hardening checklists for common utility OT configurations | 📋 Planned |
 | **`ir-runbooks`** | Fill-in-the-blank incident response runbooks for OT-specific scenarios | 📋 Planned |
 
-Every tool and checklist maps to [CISA Cross-Sector Cybersecurity Performance Goals (CPGs)](https://www.cisa.gov/cross-sector-cybersecurity-performance-goals) so operators can demonstrate compliance with concrete evidence.
+PALISADE can express alignment to frameworks such as [CISA Cross-Sector Cybersecurity Performance Goals (CPGs)](https://www.cisa.gov/cross-sector-cybersecurity-performance-goals), and it now includes WaterISAC Fundamentals alignment in report output for relevant users. That framework alignment is intended to support operators, not redefine the product around a single sector.
 
 ## Current Status
 

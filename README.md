@@ -2,7 +2,7 @@
 
 **Practical Audit Library for Industrial Security, Asset Discovery, and Edge Defense**
 
-PALISADE is a pragmatic edge-risk triage layer for small and mid-size utilities, municipal systems, co-ops, and critical infrastructure teams that do not have dedicated OT security staff or budgets for platforms like Dragos, Claroty, or Tenable OT.
+PALISADE is a pragmatic edge-risk triage layer for under-resourced critical infrastructure, public-sector, and industrial operators that do not have dedicated OT security staff or budgets for platforms like Dragos, Claroty, or Tenable OT.
 
 The current release does one narrow job: **unauthenticated, non-intrusive edge-device exposure triage**. PALISADE helps identify likely exposed edge appliances, match the evidence it can safely collect against exploited-vulnerability risk, and generate reports that operators, leadership, and auditors can actually use.
 
@@ -23,6 +23,8 @@ PALISADE is built for that gap. It gives under-resourced operators a local, prac
 - What should we prioritize?
 - How do we save evidence of that review?
 
+Water and municipal environments are an important validation lane for PALISADE, but they are not the only environments it is meant to serve.
+
 ## Why It May Be Useful
 
 PALISADE is designed to be:
@@ -33,6 +35,16 @@ PALISADE is designed to be:
 - more actionable than a spreadsheet of advisories and CVEs
 
 The point is not comprehensive visibility. The point is fast, defensible prioritization for a class of risks that smaller operators routinely struggle to assess.
+
+## Current Focus
+
+The current product identity is broader than any one sector:
+
+- under-resourced critical infrastructure teams
+- municipal and public-sector operators
+- industrial operators without mature security tooling
+
+Water and wastewater utilities are one important audience to validate with because they appear to reflect many of the staffing, budget, and evidence-generation constraints PALISADE is designed around.
 
 ## What It Does Today
 
